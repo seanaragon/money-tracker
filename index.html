@@ -320,6 +320,13 @@ table.t{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;mi
 .ex-ready{border:1px solid var(--line-2);border-radius:12px;padding:12px 14px;background:var(--sheet);display:grid;gap:4px}
 .ex-acts{display:flex;flex-wrap:wrap;gap:8px}
 @media (min-width:641px){.modal{align-items:center}}
+.modal-card:focus{outline:none}
+.ed-l{font-size:12.5px;color:var(--ink-3);margin-bottom:-6px}
+.ed-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ed-row .fld{width:100%;margin-top:6px}
+.ed-acts .btn-danger{margin-left:auto}
+.row .pen{width:13px;height:13px;margin-left:8px;color:var(--ink-3);opacity:.5;vertical-align:-2px}
+.row:hover .pen,.row:focus-visible .pen{opacity:1}
 
 /* toast, copy box, footer */
 .toast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:14px;padding:8px 8px 8px 16px;border-radius:999px;background:var(--ink);color:var(--paper);font-size:13px;width:max-content;max-width:calc(100% - 32px);box-shadow:0 12px 30px -12px var(--shadow)}
@@ -589,6 +596,12 @@ table.t{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;mi
     <div id="exBody" style="display:flex;flex-direction:column;gap:14px"></div>
   </div>
 </div>
+<div class="modal" id="editModal" hidden>
+  <form class="modal-card" id="editForm" role="dialog" aria-modal="true" aria-labelledby="edTitle" autocomplete="off" tabindex="-1">
+    <div class="tp-head"><b id="edTitle">Edit entry</b><button type="button" class="icon-btn" data-act="edit-close" aria-label="Close"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"/></svg></button></div>
+    <div id="edBody" style="display:flex;flex-direction:column;gap:12px"></div>
+  </form>
+</div>
 
 <script>
 (() => {
@@ -699,7 +712,7 @@ function normalizeSettings(d) {
 const S = {
   view: "month", y: TODAY.y, m: TODAY.m,
   status: "connecting", months: {}, confirmed: {}, settings: normalizeSettings({}), settingsLoaded: false, version: 0,
-  filter: "all", q: "", editing: null, planEdit: false, planDraft: null,
+  filter: "all", q: "", edit: null, planEdit: false, planDraft: null,
   add: { type: "out", bucket: "", manual: false, auto: false, unpaid: false, when: null, whenOpen: false },
   top: { b: "all", q: "" }, delArm: false, busy: null, restore: null, themeOpen: false
 };
@@ -1471,7 +1484,7 @@ function nav(hash) { if (location.hash.slice(1) === hash) onRoute(); else locati
 function onRoute() {
   const prevView = S.view, prevKey = ym(S.y, S.m);
   readHash();
-  if (prevView !== S.view || prevKey !== ym(S.y, S.m)) { S.editing = null; S.planEdit = false; S.delArm = false; }
+  if (prevView !== S.view || prevKey !== ym(S.y, S.m)) { if (S.edit) closeEdit(); S.planEdit = false; S.delArm = false; }
   if (prevKey !== ym(S.y, S.m)) { S.add.when = null; S.add.whenOpen = false; }
   ensureSubs();
   renderAll();
@@ -1577,7 +1590,8 @@ function renderMonth() {
 
   syncAddForm();
   const ov = $("#mOverview");
-  if (!(S.planEdit && ov.contains(document.activeElement))) renderOverview(r, p);
+  const typingPlan = S.planEdit && document.activeElement && document.activeElement.classList && document.activeElement.classList.contains("pin") && ov.contains(document.activeElement);
+  if (!typingPlan) renderOverview(r, p);
   renderBills(r);
   renderList(r);
 }
@@ -1690,11 +1704,10 @@ function renderList(r) {
   if (r.list.length) {
     if (S.filter === "all" && !q) foot = plural(r.list.length, "entry", "entries") + " · " + M(r.inc) + " in · " + M(r.out) + " out";
     else foot = list.length + " of " + r.list.length + " shown · " + M(list.reduce((t, e) => t + e.amt, 0));
-    foot = "<span>" + foot + '</span><button type="button" class="link" data-act="copy-month">Copy ' + MON[S.m - 1] + " for a spreadsheet</button>";
+    foot = "<span>" + foot + ' · tap an entry to edit it</span><button type="button" class="link" data-act="copy-month">Copy ' + MON[S.m - 1] + " for a spreadsheet</button>";
   }
   $("#mFoot").innerHTML = foot;
 
-  if (S.editing && rowsEl.contains(document.activeElement)) return;
   let html;
   if (!r.list.length && !loaded(S.y)) html = '<div class="empty">Loading your entries…</div>';
   else if (!r.list.length) html = '<div class="empty">Nothing logged for ' + MONTHS[S.m - 1] + " yet. Type what you spent and the amount in the box above, then tap Add. Your entries show up here, grouped by day.</div>";
@@ -1718,28 +1731,12 @@ function renderList(r) {
 }
 
 function rowHTML(e) {
-  if (S.editing === e.id) return editorHTML(e);
   const isIn = e.t === "in";
   const cat = isIn
     ? '<span class="ct"><i class="dot" style="--c:var(--pos)"></i>' + (e.from ? "Carried over" : "Income") + "</span>"
     : '<span class="ct"><i class="dot" style="--c:' + colorOf(e.b) + '"></i>' + labelOf(e.b) + "</span>";
   const tags = (!isIn && !e.paid ? '<button type="button" class="unpaid" data-act="mark-paid" data-id="' + esc(e.id) + '" title="Mark as paid">Not paid</button>' : "") + (e.bill ? '<span class="tag">Bill</span>' : "");
-  return '<div class="row ' + (isIn ? "in" : "out") + '" data-id="' + esc(e.id) + '" tabindex="0" aria-label="Edit ' + esc(e.desc) + '"><span class="tm">' + esc(fmtTime(e.tm)) + '</span><span class="ds"><span class="tx">' + esc(e.desc) + "</span>" + tags + "</span>" + cat + '<span class="am">' + (isIn ? "+" : "") + M(e.amt) + "</span></div>";
-}
-
-function editorHTML(e) {
-  const isIn = e.t === "in";
-  const date = e.d ? e.y + "-" + pad(e.m) + "-" + pad(e.d) : "";
-  const opts = [["", "Unsorted"]].concat(BUCKETS.map(b => [b.k, b.label])).map(([k, l]) => '<option value="' + k + '"' + (e.b === k ? " selected" : "") + ">" + l + "</option>").join("");
-  return '<form class="edit" data-id="' + esc(e.id) + '" autocomplete="off"><div class="edit-fields">' +
-    '<div class="fld f-desc"><input id="ed-desc" name="desc" value="' + esc(e.desc) + '" maxlength="120" aria-label="Description"></div>' +
-    '<div class="fld f-amt"><span class="cur">' + esc(cfg().currency) + '</span><input id="ed-amt" name="amt" inputmode="decimal" value="' + r2(e.amt) + '" aria-label="Amount"></div>' +
-    (isIn ? "" : '<select class="sel" id="ed-b" name="b" aria-label="Bucket">' + opts + "</select>") +
-    '<div class="fld f-date"><input id="ed-date" type="date" name="date" value="' + date + '" aria-label="Date"></div>' +
-    '<div class="fld f-time"><input id="ed-time" type="time" name="time" value="' + (e.tm || "") + '" aria-label="Time"></div>' +
-    '</div><div class="edit-acts">' +
-    (isIn ? "" : '<label class="check"><input type="checkbox" id="ed-unpaid" name="unpaid"' + (e.paid ? "" : " checked") + "> Not paid yet</label>") +
-    '<button type="submit" class="btn btn-primary">Save</button><button type="button" class="btn" data-act="edit-cancel">Cancel</button><button type="button" class="btn btn-danger" data-act="edit-delete">Delete</button></div></form>';
+  return '<div class="row ' + (isIn ? "in" : "out") + '" data-id="' + esc(e.id) + '" tabindex="0" aria-label="Edit ' + esc(e.desc) + '"><span class="tm">' + esc(fmtTime(e.tm)) + '</span><span class="ds"><span class="tx">' + esc(e.desc) + "</span>" + tags + "</span>" + cat + '<span class="am">' + (isIn ? "+" : "") + M(e.amt) + '<svg class="pen" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.6 3.4l2 2L6 12H4v-2z"/></svg></span></div>';
 }
 
 /* year */
@@ -1999,34 +1996,54 @@ function submitAdd() {
 
 /* ---------- actions ---------- */
 function setFilter(k, jump) {
-  S.filter = k; S.editing = null;
+  S.filter = k;
   renderMonth();
   if (jump) $("#entries").scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
 }
-function openEditor(id) {
-  S.editing = id; renderMonth();
-  const el = $("#ed-desc"); if (el) el.focus();
+function openEditor(id, opener) {
+  const e = findEntry(id); if (!e) return;
+  S.edit = { id, t: e.t, desc: e.desc, amt: String(r2(e.amt)), b: e.b, date: e.d ? e.y + "-" + pad(e.m) + "-" + pad(e.d) : "", time: e.tm || "", unpaid: !e.paid };
+  S.editOpener = opener || null;
+  S.themeOpen = false; renderTheme();
+  renderEdit();
+  if (matchMedia("(pointer:coarse)").matches) $("#editForm").focus(); else { const f = $("#ed-desc"); if (f) f.focus(); }
 }
-function saveEdit(form) {
-  const e = findEntry(form.dataset.id); if (!e) { S.editing = null; renderMonth(); return; }
-  const fd = new FormData(form);
-  const amt = parseAmt(fd.get("amt"));
-  if (!(amt >= 0)) { toast("Enter a valid amount."); return; }
-  const desc = String(fd.get("desc") || "").trim().replace(/\s+/g, " ") || e.desc;
+function closeEdit() {
+  S.edit = null; renderEdit();
+  const o = S.editOpener; S.editOpener = null;
+  if (o && document.contains(o)) o.focus();
+}
+function renderEdit() {
+  const d = S.edit, modal = $("#editModal");
+  modal.hidden = !d;
+  if (!d) return;
+  const isOut = d.t === "out";
+  $("#edTitle").textContent = isOut ? "Edit expense" : "Edit income";
+  $("#edBody").innerHTML =
+    '<div class="seg" role="group" aria-label="Entry type" style="align-self:flex-start"><button type="button" data-edtype="out" aria-pressed="' + isOut + '">Expense</button><button type="button" data-edtype="in" aria-pressed="' + !isOut + '">Income</button></div>' +
+    '<label class="ed-l" for="ed-desc">' + (isOut ? "What for" : "From where") + '</label><div class="fld"><input id="ed-desc" value="' + esc(d.desc) + '" maxlength="120"></div>' +
+    '<label class="ed-l" for="ed-amt">Amount</label><div class="fld"><span class="cur">' + esc(cfg().currency) + '</span><input id="ed-amt" inputmode="decimal" value="' + esc(d.amt) + '"></div>' +
+    (isOut ? '<span class="ed-l">Bucket</span><div class="chips" role="group" aria-label="Bucket" style="display:flex;flex-wrap:wrap;gap:6px">' + BUCKETS.map(b => '<button type="button" class="chip" data-edb="' + b.k + '" aria-pressed="' + (d.b === b.k) + '"><i class="dot" style="--c:' + colorOf(b.k) + '"></i>' + b.label + "</button>").join("") + "</div>" : "") +
+    '<div class="ed-row"><div><label class="ed-l" for="ed-date">Date</label><div class="fld"><input id="ed-date" type="date" value="' + d.date + '"></div></div><div><label class="ed-l" for="ed-time">Time</label><div class="fld"><input id="ed-time" type="time" value="' + d.time + '"></div></div></div>' +
+    (isOut ? '<label class="check"><input type="checkbox" id="ed-unpaid"' + (d.unpaid ? " checked" : "") + "> Not paid yet</label>" : "") +
+    '<div class="ex-acts ed-acts"><button type="submit" class="btn btn-primary">Save changes</button><button type="button" class="btn" data-act="edit-close">Cancel</button><button type="button" class="btn btn-danger" data-act="edit-delete">Delete</button></div>';
+}
+function saveEdit() {
+  const dr = S.edit; if (!dr) return;
+  const e = findEntry(dr.id); if (!e) { closeEdit(); toast("That entry is gone."); return; }
+  const amt = parseAmt(dr.amt);
+  if (!(amt >= 0)) { toast("Enter a valid amount."); const a = $("#ed-amt"); if (a) a.focus(); return; }
+  const desc = String(dr.desc || "").trim().replace(/\s+/g, " ") || e.desc || (dr.t === "in" ? "Income" : "Expense");
   let y = e.y, m = e.m, d = null;
-  const ds = String(fd.get("date") || "");
-  if (ds) { const p = ds.split("-").map(Number); if (p[0] && p[1] && p[2]) { y = p[0]; m = p[1]; d = p[2]; } }
-  const tmv = String(fd.get("time") || "");
+  if (dr.date) { const p = dr.date.split("-").map(Number); if (p[0] && p[1] && p[2]) { y = p[0]; m = p[1]; d = p[2]; } }
   const next = rawOf(e);
-  next.desc = desc; next.amt = amt;
+  next.t = dr.t; next.desc = desc; next.amt = amt;
   delete next.d; if (d) next.d = d;
-  delete next.tm; if (isTime(tmv)) next.tm = tmv;
-  if (e.t === "out") {
-    const b = String(fd.get("b") || "");
-    if (BK[b]) next.b = b; else delete next.b;
-    if (fd.get("unpaid")) next.paid = false; else delete next.paid;
-  }
-  S.editing = null;
+  delete next.tm; if (isTime(dr.time)) next.tm = dr.time;
+  delete next.b; delete next.paid;
+  if (dr.t === "out") { if (BK[dr.b]) next.b = dr.b; if (dr.unpaid) next.paid = false; delete next.from; }
+  else delete next.bill;
+  closeEdit();
   if (y === e.y && m === e.m) {
     changeMonth(y, m, list => list.map(x => x.id === e.id ? next : x)).then(() => toast("Saved"), handleWriteError);
   } else {
@@ -2037,7 +2054,6 @@ function saveEdit(form) {
 }
 function removeEntry(e) {
   const raw = rawOf(e);
-  S.editing = null;
   changeMonth(e.y, e.m, list => list.filter(x => x.id !== e.id)).catch(handleWriteError);
   toast("Deleted " + e.desc, { label: "Undo", run: () => changeMonth(e.y, e.m, list => list.concat([raw])).catch(handleWriteError) });
   renderMonth();
@@ -2114,8 +2130,8 @@ function onAct(act, el) {
     case "unmove": undoMove(); break;
     case "mark-paid": markPaid(el.dataset.id); break;
     case "clear-filter": S.filter = "all"; S.q = ""; $("#q").value = ""; renderMonth(); break;
-    case "edit-cancel": S.editing = null; renderMonth(); break;
-    case "edit-delete": { const f = el.closest("form"); const e = f && findEntry(f.dataset.id); if (e) removeEntry(e); break; }
+    case "edit-close": closeEdit(); break;
+    case "edit-delete": { const e = S.edit && findEntry(S.edit.id); closeEdit(); if (e) removeEntry(e); break; }
     case "go-plan": nav("plan"); break;
     case "welcome-done": setMeta({ welcomeDone: true }); renderMonth(); break;
     case "plan-edit": {
@@ -2165,6 +2181,13 @@ function onAct(act, el) {
 
 document.addEventListener("click", ev => {
   if (ev.target.id === "exportModal") { closeExport(); return; }
+  if (ev.target.id === "editModal") { closeEdit(); return; }
+  const et = ev.target.closest("[data-edtype],[data-edb]");
+  if (et && S.edit) {
+    if (et.dataset.edtype) { if (S.edit.t !== et.dataset.edtype) { S.edit.t = et.dataset.edtype; renderEdit(); } }
+    else { S.edit.b = S.edit.b === et.dataset.edb ? "" : et.dataset.edb; document.querySelectorAll("#edBody [data-edb]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.edb === S.edit.b))); }
+    return;
+  }
   if (S.themeOpen && !ev.target.closest("#themePanel") && !ev.target.closest("#themeBtn")) { S.themeOpen = false; renderTheme(); }
   const el = ev.target.closest("[data-act],[data-filter],[data-m],[data-bill],[data-type],[data-pick],[data-top],[data-mode],[data-preset],[data-expreset],.row");
   if (!el) return;
@@ -2186,18 +2209,18 @@ document.addEventListener("click", ev => {
   if (el.dataset.pick) { setBucket(S.add.bucket === el.dataset.pick ? "" : el.dataset.pick, true); return; }
   if (el.dataset.top != null) { S.top.b = el.dataset.top; renderTop(); return; }
   if (el.dataset.filter != null) { setFilter(el.dataset.filter, !!el.dataset.jump); return; }
-  if (el.classList.contains("row")) openEditor(el.dataset.id);
+  if (el.classList.contains("row")) openEditor(el.dataset.id, el);
 });
 document.addEventListener("keydown", ev => {
   const t = ev.target;
-  if (t.classList && t.classList.contains("row") && (ev.key === "Enter" || ev.key === " ")) { ev.preventDefault(); openEditor(t.dataset.id); return; }
+  if (t.classList && t.classList.contains("row") && (ev.key === "Enter" || ev.key === " ")) { ev.preventDefault(); openEditor(t.dataset.id, t); return; }
   if (ev.key === "Escape") {
     if (S.exp) { closeExport(); return; }
     if (S.themeOpen) { S.themeOpen = false; renderTheme(); $("#themeBtn").focus(); return; }
-    if (S.editing) { S.editing = null; renderMonth(); return; }
+    if (S.edit) { closeEdit(); return; }
   }
   if (t.closest && t.closest("input,textarea,select,[contenteditable]")) return;
-  if (ev.metaKey || ev.ctrlKey || ev.altKey || S.exp) return;
+  if (ev.metaKey || ev.ctrlKey || ev.altKey || S.exp || S.edit) return;
   if (ev.key === "ArrowLeft" || ev.key === "ArrowRight") {
     const dlt = ev.key === "ArrowLeft" ? -1 : 1;
     if (S.view === "month") { const n = shift(S.y, S.m, dlt); nav(ym(n.y, n.m)); ev.preventDefault(); }
@@ -2209,7 +2232,11 @@ document.addEventListener("input", ev => {
   const t = ev.target;
   if (t.id === "fDesc") onDescInput();
   else if (t.id === "fDate" || t.id === "fTime") { S.add.when = (fDate.value || fTime.value) ? { date: fDate.value, time: fTime.value } : null; renderWhen(); }
-  else if (t.id === "q") { S.q = t.value; S.editing = null; renderMonth(); }
+  else if (t.id === "q") { S.q = t.value; renderMonth(); }
+  else if (S.edit && t.id === "ed-desc") S.edit.desc = t.value;
+  else if (S.edit && t.id === "ed-amt") S.edit.amt = t.value;
+  else if (S.edit && t.id === "ed-date") S.edit.date = t.value;
+  else if (S.edit && t.id === "ed-time") S.edit.time = t.value;
   else if (t.classList.contains("pin")) S.planDraft[t.dataset.k] = t.value;
   else if (t.id === "topQ") { S.top.q = t.value; renderTop(); }
   else if (t.closest("#pPlan")) updatePlanSum();
@@ -2218,6 +2245,7 @@ document.addEventListener("input", ev => {
 document.addEventListener("change", ev => {
   const t = ev.target;
   if (t.type === "color" && t.dataset.k) { const k = t.dataset.k, v = t.value; saveSettings(s => { s.look.mode = "custom"; s.look[k] = v; }); }
+  else if (t.id === "ed-unpaid" && S.edit) S.edit.unpaid = t.checked;
   else if (t.id === "restoreFile") { const f = t.files && t.files[0]; if (f) readRestoreFile(f); t.value = ""; }
   else if (S.exp && ["exFm", "exFy", "exTm", "exTy"].includes(t.id)) { S.exp[{ exFm: "fm", exFy: "fy", exTm: "tm", exTy: "ty" }[t.id]] = Number(t.value); if (S.exp.stage === "error") S.exp.stage = "pick"; updateExportNote(); }
 });
@@ -2225,7 +2253,7 @@ document.addEventListener("submit", ev => {
   const f = ev.target;
   ev.preventDefault();
   if (f.id === "addForm") submitAdd();
-  else if (f.classList.contains("edit")) saveEdit(f);
+  else if (f.id === "editForm") saveEdit();
   else if (f.id === "planForm") {
     const v = {}; let bad = false;
     for (const k of ["income"].concat(KEYS)) { const raw = $("#pl-" + k).value.trim(); const n = raw ? parseAmt(raw) : 0; if (!(n >= 0)) bad = true; v[k] = n > 0 ? n : 0; }
