@@ -324,7 +324,9 @@ table.t{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;mi
 .bk-row{display:grid;grid-template-columns:52px minmax(0,240px) minmax(0,1fr);gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
 .bk-row input[type=color]{width:52px;height:36px;border:1px solid var(--line-2);border-radius:8px;background:var(--sheet);padding:2px;cursor:pointer}
 .bk-row .fld{height:40px}
-@media (max-width:640px){.bk-row{grid-template-columns:52px minmax(0,1fr)}.bk-row .hint{grid-column:2}}
+.bk-acts{display:flex;gap:12px;align-items:center}
+.bk-add{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding-top:12px}
+@media (max-width:640px){.bk-row{grid-template-columns:52px minmax(0,1fr)}.bk-row .hint,.bk-row .bk-acts{grid-column:2}}
 .ed-l{font-size:12.5px;color:var(--ink-3);margin-bottom:-6px}
 .ed-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .ed-row .fld{width:100%;margin-top:6px}
@@ -489,7 +491,6 @@ table.t{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;mi
         <div class="add-sub">
           <div class="chips" id="fBuckets" role="group" aria-label="Bucket"></div>
           <span class="sep" id="fSep" aria-hidden="true"></span>
-          <button type="button" class="chip" id="fUnpaid" data-act="toggle-unpaid" aria-pressed="false">Not paid yet</button>
           <span class="hint" id="fHint" aria-live="polite"></span>
           <button type="submit" class="btn btn-primary add-btn">Add</button>
         </div>
@@ -624,9 +625,24 @@ const BUCKETS = [
   { k: "goals", label: "Short-term goals", short: "Goals" },
   { k: "savings", label: "Savings", short: "Savings" }
 ];
+const BASE = BUCKETS.map(b => Object.assign({}, b));
+const BASE_KEYS = BASE.map(b => b.k);
 const BK = Object.fromEntries(BUCKETS.map(b => [b.k, b]));
 const KEYS = BUCKETS.map(b => b.k);
 const ALLK = KEYS.concat([""]);
+const EXTRA_KEY = /^x[a-z0-9]{4,14}$/;
+const MAX_EXTRA = 4;
+const EXTRA_COLORS = ["#7B6A9E", "#3E8A88", "#B0647D", "#8A8A3E"];
+// Rebuild the bucket list in place: the four defaults, then the person's own buckets.
+function setBucketList(extra) {
+  const list = BASE.map(b => Object.assign({}, b)).concat((extra || []).map(e => ({ k: e.k, label: e.name, short: e.name, extra: true })));
+  BUCKETS.splice(0, BUCKETS.length, ...list);
+  KEYS.splice(0, KEYS.length, ...list.map(b => b.k));
+  ALLK.splice(0, ALLK.length, ...KEYS, "");
+  for (const k of Object.keys(BK)) delete BK[k];
+  for (const b of list) BK[b.k] = b;
+}
+const bkey = k => (k && BK[k]) ? k : "";
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const MON = MONTHS.map(s => s.slice(0, 3));
 const LS_DATA = "moneytracker.v1", LS_LOOK = "moneytracker.look", LS_META = "moneytracker.meta";
@@ -658,13 +674,13 @@ const daysIn = (y, m) => new Date(y, m, 0).getDate();
 const r2 = n => Math.round((Number(n) || 0) * 100) / 100;
 const num = v => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
 const norm = s => String(s || "").toLowerCase().replace(/\s+/g, " ").trim().replace(/[.,;:!]+$/, "").trim();
-const colorOf = k => k ? "var(--" + k + ")" : "var(--unsorted)";
-const labelOf = k => k ? BK[k].label : "Unsorted";
+const colorOf = k => k ? "var(--" + k + ", var(--unsorted))" : "var(--unsorted)";
+const labelOf = k => (k && BK[k]) ? BK[k].label : "Unsorted";
 const isCur = (y, m) => y === TODAY.y && m === TODAY.m;
 const cmpYM = (ay, am, by, bm) => (ay * 12 + am) - (by * 12 + bm);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const rid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-const emptyBy = () => ({ needs: 0, wants: 0, goals: 0, savings: 0, "": 0 });
+const emptyBy = () => { const o = { "": 0 }; for (const k of KEYS) o[k] = 0; return o; };
 const plural = (n, a, b) => n + " " + (n === 1 ? a : b);
 const clone = o => JSON.parse(JSON.stringify(o));
 const isTime = v => typeof v === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(v);
@@ -698,30 +714,38 @@ function normLook(l) {
 }
 function normalizeSettings(d) {
   d = d && typeof d === "object" ? d : {};
-  const c = { currency: "₱", plan: {}, months: {}, bills: [], years: [], look: normLook(d.look) };
+  const c = { currency: "₱", plan: {}, months: {}, bills: [], years: [], look: normLook(d.look), extra: [] };
+  const cleanName = s => String(s || "").replace(/&/g, " and ").replace(/[<>"]/g, "").replace(/'/g, "’").replace(/\s+/g, " ").trim().slice(0, 24);
+  if (Array.isArray(d.extra)) {
+    for (const e of d.extra) {
+      if (!e || !EXTRA_KEY.test(e.k) || c.extra.some(x => x.k === e.k) || c.extra.length >= MAX_EXTRA) continue;
+      c.extra.push({ k: e.k, name: cleanName(e.name) || "New bucket", color: validHex(e.color) ? e.color : EXTRA_COLORS[c.extra.length % EXTRA_COLORS.length] });
+    }
+  }
+  const keys = BASE_KEYS.concat(c.extra.map(e => e.k));
   if (typeof d.currency === "string" && d.currency.trim()) c.currency = d.currency.trim().slice(0, 4);
-  for (const k of ["income"].concat(KEYS)) c.plan[k] = Math.max(0, num(d.plan && d.plan[k]));
+  for (const k of ["income"].concat(keys)) c.plan[k] = Math.max(0, num(d.plan && d.plan[k]));
   if (d.months && typeof d.months === "object") {
     for (const key of Object.keys(d.months)) {
       const v = d.months[key];
       if (!/^\d{4}-\d{2}$/.test(key) || !v || typeof v !== "object") continue;
       const o = {};
-      for (const k of KEYS) if (v[k] != null && Number.isFinite(Number(v[k]))) o[k] = Math.max(0, Number(v[k]));
+      for (const k of keys) if (v[k] != null && Number.isFinite(Number(v[k]))) o[k] = Math.max(0, Number(v[k]));
       if (Object.keys(o).length) c.months[key] = o;
     }
   }
   if (Array.isArray(d.bills)) {
     for (const b of d.bills) {
       if (!b || typeof b.desc !== "string" || !b.desc.trim()) continue;
-      c.bills.push({ id: String(b.id || rid()).slice(0, 40), desc: b.desc.trim().slice(0, 60), amt: Math.max(0, num(b.amt)), b: BK[b.b] ? b.b : "" });
+      c.bills.push({ id: String(b.id || rid()).slice(0, 40), desc: b.desc.trim().slice(0, 60), amt: Math.max(0, num(b.amt)), b: keys.includes(b.b) ? b.b : "" });
     }
   }
   c.buckets = {};
   if (d.buckets && typeof d.buckets === "object") {
-    for (const k of KEYS) {
+    for (const k of BASE_KEYS) {
       const v = d.buckets[k]; if (!v || typeof v !== "object") continue;
       const o = {};
-      if (typeof v.name === "string") { const n = v.name.replace(/&/g, " and ").replace(/[<>"]/g, "").replace(/'/g, "’").replace(/\s+/g, " ").trim().slice(0, 24); if (n) o.name = n; }
+      if (typeof v.name === "string") { const n = cleanName(v.name); if (n) o.name = n; }
       if (validHex(v.color)) o.color = v.color;
       if (Object.keys(o).length) c.buckets[k] = o;
     }
@@ -780,7 +804,7 @@ function normEntry(x, y, m) {
     tm: isTime(x.tm) ? x.tm : null,
     desc: typeof x.desc === "string" ? x.desc.slice(0, 120) : "",
     amt: Math.max(0, r2(num(x.amt))),
-    b: BK[x.b] ? x.b : "",
+    b: (BK[x.b] || EXTRA_KEY.test(String(x.b || ""))) ? x.b : "",
     paid: x.paid !== false,
     bill: typeof x.bill === "string" ? x.bill.slice(0, 40) : null,
     from: typeof x.from === "string" && /^\d{4}-\d{2}$/.test(x.from) ? x.from : null,
@@ -817,10 +841,10 @@ function rawMonths() { const o = {}; for (const k of Object.keys(S.months)) if (
 function monthData(y, m, get) {
   get = get || monthList;
   const list = get(y, m);
-  const r = { y, m, list, inc: 0, carryIn: 0, out: 0, by: emptyBy(), n: { needs: 0, wants: 0, goals: 0, savings: 0, "": 0, in: 0, out: 0, unpaid: 0 }, unpaid: 0, moved: 0, movedEntries: [] };
+  const r = { y, m, list, inc: 0, carryIn: 0, out: 0, by: emptyBy(), n: Object.assign(emptyBy(), { in: 0, out: 0, unpaid: 0 }), unpaid: 0, moved: 0, movedEntries: [] };
   for (const e of list) {
     if (e.t === "in") { r.inc += e.amt; r.n.in++; if (e.from) r.carryIn += e.amt; }
-    else { r.out += e.amt; r.by[e.b] += e.amt; r.n[e.b]++; r.n.out++; if (!e.paid) { r.unpaid += e.amt; r.n.unpaid++; } }
+    else { const k = bkey(e.b); r.out += e.amt; r.by[k] += e.amt; r.n[k]++; r.n.out++; if (!e.paid) { r.unpaid += e.amt; r.n.unpaid++; } }
   }
   const nx = shift(y, m, 1), key = ym(y, m);
   for (const e of get(nx.y, nx.m)) if (e.t === "in" && e.from === key) { r.moved += e.amt; r.movedEntries.push(e); }
@@ -847,7 +871,7 @@ function memory(type) {
   return memo[type];
 }
 function baseline() {
-  const acc = { income: 0, needs: 0, wants: 0, goals: 0, savings: 0 }; let n = 0;
+  const acc = Object.assign(emptyBy(), { income: 0 }); delete acc[""]; let n = 0;
   const seen = new Set();
   for (const k of Object.keys(S.months)) {
     const y = Number(k.slice(0, 4)), m = Number(k.slice(5));
@@ -1115,9 +1139,9 @@ function toTSV(list) {
   const rows = list.slice().sort((a, b) => (a.y - b.y) || (a.m - b.m) || ((a.d || 0) - (b.d || 0)) || String(a.tm || "").localeCompare(String(b.tm || "")) || (a.ts - b.ts)).map(e => [
     e.d ? e.y + "-" + pad(e.m) + "-" + pad(e.d) : MON[e.m - 1] + " " + e.y, e.tm || "",
     e.t === "in" ? (e.from ? "Carried over" : "Income") : "Expense",
-    e.desc, e.t === "in" ? "" : labelOf(e.b), r2(e.amt), e.t === "in" ? "" : (e.paid ? "Yes" : "No")
+    e.desc, e.t === "in" ? "" : labelOf(e.b), r2(e.amt)
   ]);
-  return [["Date", "Time", "Type", "Description", "Bucket", "Amount", "Paid"]].concat(rows).map(r => r.map(clean).join("\t")).join("\n");
+  return [["Date", "Time", "Type", "Description", "Bucket", "Amount"]].concat(rows).map(r => r.map(clean).join("\t")).join("\n");
 }
 async function backupJson() {
   if (B.mode === "boot") return;
@@ -1358,7 +1382,8 @@ function buildWorkbook(X, a, b, get) {
   const FM = q("#,##0.00") + ";[Red]-" + q("#,##0.00"), FM_PLAIN = q("#,##0.00") + ";-" + q("#,##0.00"), FM_WHOLE = q("#,##0") + ";-" + q("#,##0"), PCT = "0%";
   const C = { ink: "FF2A251F", ink2: "FF5A5145", ink3: "FF72685B", head: "FFF1EBE1", line: "FFCDC2B0", soft: "FFE7DFD2", pos: "FF43703C", neg: "FFA6462F", needs: "FF5F7586", wants: "FFBF7A5C", goals: "FFB58C35", savings: "FF627F57", unsorted: "FF8E8476" };
   const custom = cfg().buckets || {};
-  const bc = k => (k && custom[k] && custom[k].color) ? "FF" + custom[k].color.slice(1).toUpperCase() : C[k || "unsorted"];
+  const extraC = Object.fromEntries((cfg().extra || []).map(e => [e.k, e.color]));
+  const bc = k => { const h = (k && custom[k] && custom[k].color) || extraC[k]; return h ? "FF" + h.slice(1).toUpperCase() : (C[bkey(k) || "unsorted"] || C.unsorted); };
   const col = n => { let s = ""; while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); } return s; };
   const months = [];
   for (let i = a.y * 12 + a.m - 1; i <= b.y * 12 + b.m - 1; i++) months.push(monthData(Math.floor(i / 12), i % 12 + 1, get));
@@ -1410,7 +1435,6 @@ function buildWorkbook(X, a, b, get) {
     ["Saved", { formula: col(cSav) + rT, result: T.by.savings }, FM],
     ["Savings rate", { formula: "IF(B6>0,B8/B6,0)", result: T.inc > 0 ? T.by.savings / T.inc : 0 }, PCT],
     ["Left over", { formula: col(cLeft) + rT, result: r2(T.inc - T.out) }, FM],
-    ["Not paid yet", T.unpaid, FM],
     ["Average money out a month", withData.length ? r2(T.out / withData.length) : 0, FM_WHOLE]
   ];
   kv.forEach(([k, v, f], i) => {
@@ -1494,8 +1518,8 @@ function buildWorkbook(X, a, b, get) {
 
   /* Entries sheet */
   const es = wb.addWorksheet("Entries", { views: [{ state: "frozen", ySplit: 1 }], pageSetup: page, properties: { tabColor: { argb: C.needs } } });
-  es.columns = [{ width: 14 }, { width: 7 }, { width: 11 }, { width: 11 }, { width: 13 }, { width: 36 }, { width: 18 }, { width: 15 }, { width: 15 }, { width: 8 }];
-  header(es, 1, ["Date", "Day", "Time", "Month", "Type", "Description", "Bucket", "Money in", "Money out", "Paid"], 7);
+  es.columns = [{ width: 14 }, { width: 7 }, { width: 11 }, { width: 11 }, { width: 13 }, { width: 36 }, { width: 18 }, { width: 15 }, { width: 15 }];
+  header(es, 1, ["Date", "Day", "Time", "Month", "Type", "Description", "Bucket", "Money in", "Money out"], 7);
   const sorted = all.slice().sort((p, q2) => (p.y - q2.y) || (p.m - q2.m) || ((p.d || 0) - (q2.d || 0)) || String(p.tm || "").localeCompare(String(q2.tm || "")) || (p.ts - q2.ts));
   const epoch = Date.UTC(1899, 11, 30);
   let sumIn = 0, sumOut = 0;
@@ -1512,15 +1536,14 @@ function buildWorkbook(X, a, b, get) {
     if (e.t === "out") {
       const bcell = es.getCell(row, 7); bcell.value = labelOf(e.b); bcell.font = { color: { argb: bc(e.b) } };
       setMoney(es.getCell(row, 9), e.amt); sumOut += e.amt;
-      const pc = es.getCell(row, 10); pc.value = e.paid ? "Yes" : "No"; if (!e.paid) pc.font = { bold: true, color: { argb: C.neg } };
     } else {
       setMoney(es.getCell(row, 8), e.amt); es.getCell(row, 8).font = { color: { argb: C.pos } }; sumIn += e.amt;
     }
-    for (let j = 1; j <= 10; j++) es.getCell(row, j).border = { bottom: hair };
+    for (let j = 1; j <= 9; j++) es.getCell(row, j).border = { bottom: hair };
   });
   if (sorted.length) {
     const last = sorted.length + 1, rt = last + 2;
-    es.autoFilter = "A1:J" + last;
+    es.autoFilter = "A1:I" + last;
     const lab = es.getCell(rt, 6); lab.value = "Total of the rows shown"; lab.font = { bold: true }; lab.alignment = { horizontal: "right" };
     es.getCell(rt, 8).value = { formula: "SUBTOTAL(9,H2:H" + last + ")", result: r2(sumIn) };
     es.getCell(rt, 9).value = { formula: "SUBTOTAL(9,I2:I" + last + ")", result: r2(sumOut) };
@@ -1600,23 +1623,43 @@ let raf = 0;
 function schedule() { if (!raf) raf = requestAnimationFrame(() => { raf = 0; renderAll(); }); }
 const DEF_BUCKETS = Object.fromEntries(BUCKETS.map(b => [b.k, { label: b.label, short: b.short }]));
 const DEF_COLORS = { needs: "#5F7586", wants: "#BF7A5C", goals: "#B58C35", savings: "#627F57" };
+let shownExtra = [];
 function applyBuckets() {
-  const custom = cfg().buckets || {}, r = document.documentElement;
+  const custom = cfg().buckets || {}, extra = cfg().extra || [], r = document.documentElement;
+  setBucketList(extra);
   for (const b of BUCKETS) {
+    if (b.extra) continue;
     const c = custom[b.k] || {};
     b.label = c.name || DEF_BUCKETS[b.k].label;
     b.short = c.name || DEF_BUCKETS[b.k].short;
     if (c.color) r.style.setProperty("--" + b.k, c.color); else r.style.removeProperty("--" + b.k);
   }
+  for (const k of shownExtra) if (!extra.some(e => e.k === k)) r.style.removeProperty("--" + k);
+  for (const e of extra) r.style.setProperty("--" + e.k, e.color);
+  shownExtra = extra.map(e => e.k);
 }
 function renderBucketEditor() {
   const el = $("#pBuckets");
   if (el.contains(document.activeElement)) return;
-  const custom = cfg().buckets || {};
-  el.innerHTML = BUCKETS.map(b => {
+  const custom = cfg().buckets || {}, extra = cfg().extra || [];
+  el.innerHTML = BASE.map(b => {
     const c = custom[b.k] || {};
-    return '<div class="bk-row"><input type="color" id="bc-' + b.k + '" value="' + (c.color || DEF_COLORS[b.k]) + '" aria-label="' + esc(b.label) + ' color"><div class="fld"><input id="bn-' + b.k + '" maxlength="24" value="' + esc(c.name || "") + '" placeholder="' + DEF_BUCKETS[b.k].label + '" aria-label="Name for ' + DEF_BUCKETS[b.k].label + '"></div><span class="hint">' + (b.k === "savings" ? "Counts as money you saved" : "Default: " + DEF_BUCKETS[b.k].label) + "</span></div>";
-  }).join("");
+    return '<div class="bk-row"><input type="color" id="bc-' + b.k + '" value="' + (c.color || DEF_COLORS[b.k]) + '" aria-label="' + esc(DEF_BUCKETS[b.k].label) + ' color"><div class="fld"><input id="bn-' + b.k + '" maxlength="24" value="' + esc(c.name || "") + '" placeholder="' + DEF_BUCKETS[b.k].label + '" aria-label="Name for ' + DEF_BUCKETS[b.k].label + '"></div><span class="hint">' + (b.k === "savings" ? "Counts as money you saved" : "Default: " + DEF_BUCKETS[b.k].label) + "</span></div>";
+  }).join("") + extra.map(e =>
+    '<div class="bk-row"><input type="color" id="bc-' + e.k + '" value="' + e.color + '" aria-label="' + esc(e.name) + ' color"><div class="fld"><input id="bn-' + e.k + '" maxlength="24" value="' + esc(e.name) + '" aria-label="Bucket name"></div><span class="bk-acts"><span class="hint">Your bucket</span><button type="button" class="link neg" data-act="bucket-remove" data-k="' + e.k + '">Remove</button></span></div>'
+  ).join("") + (extra.length < MAX_EXTRA ? '<div class="bk-add"><button type="button" class="btn" data-act="bucket-add">+ Add a bucket</button><span class="hint">You can add ' + plural(MAX_EXTRA - extra.length, "more bucket", "more buckets") + ".</span></div>" : '<p class="hint">You have the most buckets allowed (' + (BASE.length + MAX_EXTRA) + ").</p>");
+}
+function readBucketForm(s) {
+  const nb = {};
+  for (const b of BASE) {
+    const n = $("#bn-" + b.k), c = $("#bc-" + b.k); if (!n || !c) continue;
+    const o = {};
+    if (n.value.trim()) o.name = n.value;
+    if (validHex(c.value) && c.value.toLowerCase() !== DEF_COLORS[b.k].toLowerCase()) o.color = c.value;
+    if (Object.keys(o).length) nb[b.k] = o;
+  }
+  s.buckets = nb;
+  s.extra = (s.extra || []).map(e => { const n = $("#bn-" + e.k), c = $("#bc-" + e.k); return { k: e.k, name: n && n.value.trim() ? n.value : e.name, color: c && validHex(c.value) ? c.value : e.color }; });
 }
 function renderAll() {
   applyBuckets();
@@ -1807,7 +1850,7 @@ function dayLabel(y, m, d) {
   return esc(base);
 }
 function renderList(r) {
-  const counts = { all: r.list.length, needs: r.n.needs, wants: r.n.wants, goals: r.n.goals, savings: r.n.savings, "": r.n[""], unpaid: r.n.unpaid, in: r.n.in };
+  const counts = Object.assign({}, r.n, { all: r.list.length });
   const F = [["all", "All"]].concat(BUCKETS.map(b => [b.k, b.short]), [["", "Unsorted"], ["unpaid", "Not paid"], ["in", "Income"]]);
   let fh = "";
   for (const [k, lab] of F) {
@@ -1821,7 +1864,7 @@ function renderList(r) {
   const list = r.list.filter(e => {
     if (S.filter === "in") { if (e.t !== "in") return false; }
     else if (S.filter === "unpaid") { if (e.t !== "out" || e.paid) return false; }
-    else if (S.filter !== "all") { if (e.t !== "out" || e.b !== S.filter) return false; }
+    else if (S.filter !== "all") { if (e.t !== "out" || bkey(e.b) !== S.filter) return false; }
     return !q || norm(e.desc).includes(q);
   }).sort((a, b) => ((b.d || 0) - (a.d || 0)) || String(b.tm || "").localeCompare(String(a.tm || "")) || (b.ts - a.ts));
 
@@ -2047,7 +2090,7 @@ function syncAddForm() {
   const isOut = S.add.type === "out";
   document.querySelectorAll("[data-type]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.type === S.add.type)));
   fDesc.placeholder = isOut ? "What for? e.g. lunch" : "From where? e.g. salary";
-  $("#fBuckets").hidden = !isOut; $("#fUnpaid").hidden = !isOut; $("#fSep").hidden = !isOut;
+  $("#fBuckets").hidden = !isOut; $("#fSep").hidden = true;
   document.querySelectorAll(".cur-sym").forEach(el => { el.textContent = cfg().currency; });
   $("#addForm").hidden = B.mode === "boot" && S.status !== "connecting";
   renderAddChips();
@@ -2055,7 +2098,6 @@ function syncAddForm() {
 }
 function renderAddChips() {
   $("#fBuckets").innerHTML = BUCKETS.map(b => '<button type="button" class="chip" data-pick="' + b.k + '" aria-pressed="' + (S.add.bucket === b.k) + '"><i class="dot" style="--c:' + colorOf(b.k) + '"></i>' + b.label + "</button>").join("");
-  $("#fUnpaid").setAttribute("aria-pressed", String(S.add.unpaid));
   $("#fHint").textContent = S.add.type === "out" && S.add.auto && S.add.bucket ? "Picked " + labelOf(S.add.bucket) + " from last time" : "";
 }
 function setBucket(k, manual, auto) {
@@ -2151,7 +2193,6 @@ function renderEdit() {
     '<label class="ed-l" for="ed-amt">Amount</label><div class="fld"><span class="cur">' + esc(cfg().currency) + '</span><input id="ed-amt" inputmode="decimal" value="' + esc(d.amt) + '"></div>' +
     (isOut ? '<span class="ed-l">Bucket</span><div class="chips" role="group" aria-label="Bucket" style="display:flex;flex-wrap:wrap;gap:6px">' + BUCKETS.map(b => '<button type="button" class="chip" data-edb="' + b.k + '" aria-pressed="' + (d.b === b.k) + '"><i class="dot" style="--c:' + colorOf(b.k) + '"></i>' + b.label + "</button>").join("") + "</div>" : "") +
     '<div class="ed-row"><div><label class="ed-l" for="ed-date">Date</label><div class="fld"><input id="ed-date" type="date" value="' + d.date + '"></div></div><div><label class="ed-l" for="ed-time">Time</label><div class="fld"><input id="ed-time" type="time" value="' + d.time + '"></div></div></div>' +
-    (isOut ? '<label class="check"><input type="checkbox" id="ed-unpaid"' + (d.unpaid ? " checked" : "") + "> Not paid yet</label>" : "") +
     '<div class="ex-acts ed-acts"><button type="submit" class="btn btn-primary">Save changes</button><button type="button" class="btn" data-act="edit-close">Cancel</button><button type="button" class="btn btn-danger" data-act="edit-delete">Delete</button></div>';
 }
 function saveEdit() {
@@ -2295,18 +2336,26 @@ function onAct(act, el) {
     case "del-cancel": S.delArm = false; renderData(); break;
     case "del-go": deleteYear(S.y); break;
     case "buckets-save": {
-      const nb = {};
-      for (const k of KEYS) {
-        const name = $("#bn-" + k).value, color = $("#bc-" + k).value, o = {};
-        if (name.trim()) o.name = name;
-        if (validHex(color) && color.toLowerCase() !== DEF_COLORS[k].toLowerCase()) o.color = color;
-        if (Object.keys(o).length) nb[k] = o;
-      }
       $("#pBuckets").querySelectorAll("input").forEach(i => i.blur());
-      saveSettings(s => { s.buckets = nb; }, "Buckets saved");
+      saveSettings(s => readBucketForm(s), "Buckets saved");
       break;
     }
-    case "buckets-reset": $("#pBuckets").querySelectorAll("input").forEach(i => i.blur()); saveSettings(s => { s.buckets = {}; }, "Buckets are back to Needs, Wants, Short-term goals and Savings"); break;
+    case "bucket-add": {
+      const n = (cfg().extra || []).length; if (n >= MAX_EXTRA) break;
+      const k = "x" + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-3);
+      $("#pBuckets").querySelectorAll("input").forEach(i => i.blur());
+      saveSettings(s => { readBucketForm(s); s.extra.push({ k, name: "New bucket", color: EXTRA_COLORS[n % EXTRA_COLORS.length] }); }, "Bucket added. Give it a name, then tap Save buckets.");
+      renderPlan();
+      const inp = $("#bn-" + k); if (inp) { inp.focus(); inp.select(); }
+      break;
+    }
+    case "bucket-remove": {
+      const k = el.dataset.k, e = (cfg().extra || []).find(x => x.k === k); if (!e) break;
+      $("#pBuckets").querySelectorAll("input").forEach(i => i.blur());
+      saveSettings(s => { readBucketForm(s); s.extra = s.extra.filter(x => x.k !== k); }, "Removed " + e.name + ". Its entries now show as Unsorted.");
+      break;
+    }
+    case "buckets-reset": $("#pBuckets").querySelectorAll("input").forEach(i => i.blur()); saveSettings(s => { s.buckets = {}; s.extra = []; }, "Back to Needs, Wants, Short-term goals and Savings. Entries in removed buckets show as Unsorted."); break;
     case "export": openExport(el.dataset.range || "month", el); break;
     case "export-close": closeExport(); break;
     case "export-create": createExport(); break;
