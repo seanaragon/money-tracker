@@ -582,7 +582,7 @@ table.t{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;mi
       <div class="sec">
         <h2>Your data</h2>
         <div id="pData"></div>
-        <input type="file" id="restoreFile" accept=".json,application/json" hidden>
+        <input type="file" id="restoreFile" accept=".xlsx,.json,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
       </div>
     </section>
   </main>
@@ -1021,8 +1021,8 @@ function errText(err) {
 }
 function storageLine() {
   if (B.mode === "cloud") return "Your entries sync to your claude.ai account, so they're on every device you sign in on. Only you can see them.";
-  if (B.mode === "local" && B.env === "standalone") return "Your entries are saved on this phone or computer. Back up every month and keep the file somewhere safe, like Google Drive.";
-  if (B.mode === "local") return "This link saves your entries in this browser only. Back up every month and keep the file somewhere safe.";
+  if (B.mode === "local" && B.env === "standalone") return "Your entries are saved on this phone or computer. Back up every week and keep the file somewhere safe, like Google Drive.";
+  if (B.mode === "local") return "This link saves your entries in this browser only. Back up every week and keep the file somewhere safe.";
   return "Loading your entries…";
 }
 
@@ -1119,7 +1119,7 @@ function toTSV(list) {
   ]);
   return [["Date", "Time", "Type", "Description", "Bucket", "Amount", "Paid"]].concat(rows).map(r => r.map(clean).join("\t")).join("\n");
 }
-async function backupNow() {
+async function backupJson() {
   if (B.mode === "boot") return;
   S.busy = "Preparing your backup…"; renderData();
   const months = rawMonths();
@@ -1141,16 +1141,68 @@ async function backupNow() {
   else if (res === "copied") setMeta({ lastBackup: n.toISOString(), snooze: 0 });
   schedule();
 }
+function useBackupData(d) {
+  if (!d || d.app !== "money-tracker" || !d.months || typeof d.months !== "object") { toast("That file isn't a Money Tracker backup."); return; }
+  const months = monthsFromRaw(d.months), keys = Object.keys(months);
+  const count = keys.reduce((t, k) => t + months[k].length, 0);
+  if (!count) { toast("That file has no entries in it."); return; }
+  S.restore = { months, settings: d.settings ? normalizeSettings(d.settings) : null, count, monthsN: keys.length, exported: d.exported || "" };
+  if (S.view !== "plan") nav("plan"); else renderData();
+}
+function entriesFromSheet(ws, summary) {
+  // Rebuild entries from the Entries sheet of a report (used when the hidden backup sheet is missing).
+  const byLabel = {};
+  for (const b of BUCKETS) { byLabel[b.label.toLowerCase()] = b.k; byLabel[DEF_BUCKETS[b.k].label.toLowerCase()] = b.k; }
+  if (summary) KEYS.forEach((k, i) => { const t = String(summary.getCell(15, 3 + i).value || "").trim().toLowerCase(); if (t) byLabel[t] = k; });
+  const val = c => { const v = c.value; return v && typeof v === "object" && "result" in v ? v.result : v; };
+  const months = {};
+  ws.eachRow((row, n) => {
+    if (n === 1) return;
+    const type = String(val(row.getCell(5)) || "").trim().toLowerCase();
+    if (!["income", "expense", "carried over"].includes(type)) return;
+    let y, m, d = null, tm = null;
+    const dv = val(row.getCell(1));
+    if (dv instanceof Date) { y = dv.getUTCFullYear(); m = dv.getUTCMonth() + 1; d = dv.getUTCDate(); }
+    else if (typeof dv === "number") { const dt = new Date(Date.UTC(1899, 11, 30) + Math.round(dv) * 864e5); y = dt.getUTCFullYear(); m = dt.getUTCMonth() + 1; d = dt.getUTCDate(); }
+    else { const mm = /^([A-Za-z]{3})\w*\s+(\d{4})$/.exec(String(val(row.getCell(4)) || "").trim()); if (!mm) return; m = MON.findIndex(s => s.toLowerCase() === mm[1].toLowerCase()) + 1; y = Number(mm[2]); if (!m) return; }
+    const tv = val(row.getCell(3));
+    if (tv instanceof Date) tm = pad(tv.getUTCHours()) + ":" + pad(tv.getUTCMinutes());
+    else if (typeof tv === "number") { const mins = Math.round((tv % 1) * 1440); tm = pad(Math.floor(mins / 60) % 24) + ":" + pad(mins % 60); }
+    const isIn = type !== "expense";
+    const amt = num(val(row.getCell(isIn ? 8 : 9)));
+    const e = { id: rid(), t: isIn ? "in" : "out", desc: String(val(row.getCell(6)) || "").trim() || (isIn ? "Income" : "Expense"), amt, ts: Date.now() + n };
+    if (d) e.d = d;
+    if (tm) e.tm = tm;
+    if (!isIn) { const b = byLabel[String(val(row.getCell(7)) || "").trim().toLowerCase()]; if (b) e.b = b; if (String(val(row.getCell(10)) || "").trim().toLowerCase() === "no") e.paid = false; }
+    (months[ym(y, m)] = months[ym(y, m)] || []).push(e);
+  });
+  return months;
+}
+async function readExcelBackup(file) {
+  let X;
+  try { X = await loadExcel(); } catch (e) { toast("Couldn't load the Excel reader. Connect to the internet, then try again."); return; }
+  try {
+    const wb = new X.Workbook();
+    await wb.xlsx.load(await file.arrayBuffer());
+    const bs = wb.getWorksheet("Backup data");
+    if (bs) {
+      let json = "";
+      bs.eachRow((row, n) => { if (n > 1) json += String(row.getCell(1).value || ""); });
+      useBackupData(JSON.parse(json));
+      return;
+    }
+    const es = wb.getWorksheet("Entries");
+    if (!es) { toast("That Excel file isn't a Money Tracker report."); return; }
+    useBackupData({ app: "money-tracker", months: entriesFromSheet(es, wb.getWorksheet("Summary")) });
+  } catch (e) { toast("Couldn't read that Excel file. Try another backup."); }
+}
 function readRestoreFile(file) {
+  if (/\.xlsx$/i.test(file.name) || /spreadsheetml/.test(file.type)) { readExcelBackup(file); return; }
   const fr = new FileReader();
   fr.onload = () => {
     let d = null;
     try { d = JSON.parse(String(fr.result || "")); } catch (e) { d = null; }
-    if (!d || d.app !== "money-tracker" || !d.months || typeof d.months !== "object") { toast("That file isn't a Money Tracker backup."); return; }
-    const months = monthsFromRaw(d.months), keys = Object.keys(months);
-    const count = keys.reduce((t, k) => t + months[k].length, 0);
-    S.restore = { months, settings: d.settings ? normalizeSettings(d.settings) : null, count, monthsN: keys.length, exported: d.exported || "" };
-    if (S.view !== "plan") nav("plan"); else renderData();
+    useBackupData(d);
   };
   fr.onerror = () => toast("Couldn't read that file. Try again.");
   fr.readAsText(file);
@@ -1166,7 +1218,7 @@ async function applyRestore() {
     else if (B.mode === "cloud") { for (const k of keys) await persistMonth(k); }
     const years = Array.from(new Set(keys.map(k => Number(k.slice(0, 4)))));
     await saveSettings(s => {
-      if (r.settings) { s.currency = r.settings.currency; s.plan = r.settings.plan; s.months = r.settings.months; s.bills = r.settings.bills; }
+      if (r.settings) { s.currency = r.settings.currency; s.plan = r.settings.plan; s.months = r.settings.months; s.bills = r.settings.bills; s.buckets = r.settings.buckets || {}; }
       s.years = Array.from(new Set(s.years.concat(years)));
     });
     toast("Restored " + plural(r.count, "entry", "entries") + ".");
@@ -1223,9 +1275,14 @@ function exportPresets() {
 }
 function openExport(range, opener) {
   const whole = range === "year";
-  S.exp = { stage: "pick", fy: S.y, fm: whole ? 1 : S.m, ty: S.y, tm: whole ? 12 : S.m, blob: null, filename: "", label: "", info: "", msg: "" };
+  S.exp = { stage: "pick", fy: S.y, fm: whole ? 1 : S.m, ty: S.y, tm: whole ? 12 : S.m, blob: null, filename: "", label: "", info: "", msg: "", backup: range === "backup" };
+  if (S.exp.backup) {
+    const ys = cfg().years.concat(Object.keys(S.months).map(k => Number(k.slice(0, 4))), [S.y]);
+    S.exp.fy = Math.min(...ys); S.exp.fm = 1; S.exp.ty = Math.max(...ys); S.exp.tm = 12;
+  }
   S.expOpener = opener || null;
   S.themeOpen = false; renderTheme();
+  if (S.exp.backup) { createExport(); return; }
   renderExport();
   loadExcel().catch(() => {});
   const first = document.querySelector('#exBody [data-expreset][aria-pressed="true"]') || document.querySelector("#exBody [data-expreset]");
@@ -1241,6 +1298,18 @@ function renderExport() {
   modal.hidden = !x;
   if (!x) return;
   const body = $("#exBody");
+  $("#exTitle").textContent = x.backup ? "Back up everything" : "Download an Excel report";
+  if (x.backup && x.stage === "ready") {
+    body.innerHTML = '<div class="ex-ready"><b>Backup ready</b><span class="hint">' + esc(x.info) + "</span></div>" +
+      '<p class="ex-note">Save it somewhere off your phone, like Google Drive or iCloud. On a new phone, open Plan → Your data → Restore from a backup and pick this file. It also opens in Excel as a normal report.</p>' +
+      '<div class="ex-acts"><button type="button" class="btn btn-primary" data-act="export-save">Save backup file</button><button type="button" class="btn" data-act="export-close">Cancel</button></div>';
+    const s = body.querySelector('[data-act="export-save"]'); if (s) s.focus();
+    return;
+  }
+  if (x.backup && x.stage === "error") {
+    body.innerHTML = '<p class="neg" role="alert" style="margin:0">' + esc(x.msg) + '</p><div class="ex-acts"><button type="button" class="btn btn-primary" data-act="backup-json">Save a simple backup file instead</button><button type="button" class="btn" data-act="export-close">Cancel</button></div>';
+    return;
+  }
   if (x.stage === "busy") { body.innerHTML = '<p class="hint" role="status" style="margin:0">' + esc(x.msg) + "</p>"; return; }
   if (x.stage === "ready") {
     body.innerHTML = '<div class="ex-ready"><b>' + esc(x.label) + '</b><span class="hint">' + esc(x.info) + "</span></div>" +
@@ -1458,13 +1527,21 @@ function buildWorkbook(X, a, b, get) {
     for (const j of [8, 9]) { const c = es.getCell(rt, j); c.numFmt = FM; c.font = { bold: true }; c.border = { top: thin }; }
   } else es.getCell(2, 6).value = "No entries in this range.";
 
+  /* Hidden copy of the data, so Restore can bring every entry back exactly */
+  const rawRange = {};
+  for (const r of months) if (r.list.length) rawRange[ym(r.y, r.m)] = r.list.map(rawOf);
+  const json = JSON.stringify({ app: "money-tracker", v: 1, exported: new Date().toISOString(), settings: S.settings, months: rawRange });
+  const bs = wb.addWorksheet("Backup data", { state: "hidden" });
+  bs.getCell(1, 1).value = "Money Tracker backup. Don't edit this sheet; Restore reads it.";
+  for (let i = 0, row = 2; i < json.length; i += 30000, row++) bs.getCell(row, 1).value = json.slice(i, i + 30000);
+
   return { wb, entries: all.length, months: months.length };
 }
 async function createExport() {
   const x = S.exp; if (!x) return;
   const r = orderedRange(x);
   if (r.n > 120) { x.stage = "error"; x.msg = "Pick a range of 10 years or less."; renderExport(); return; }
-  x.stage = "busy"; x.msg = "Creating your report for " + rangeLabel(r.a.y, r.a.m, r.b.y, r.b.m) + "…"; renderExport();
+  x.stage = "busy"; x.msg = x.backup ? "Preparing your backup…" : "Creating your report for " + rangeLabel(r.a.y, r.a.m, r.b.y, r.b.m) + "…"; renderExport();
   try {
     let get;
     try { get = await rangeAccessor(r.a, r.b); } catch (e) { throw { user: "Couldn't load your entries for that range. Check your connection and try again." }; }
@@ -1477,7 +1554,9 @@ async function createExport() {
     x.label = rangeLabel(r.a.y, r.a.m, r.b.y, r.b.m);
     x.info = plural(built.entries, "entry", "entries") + " · " + plural(built.months, "month", "months") + " · " + Math.max(1, Math.round(x.blob.size / 1024)) + " KB";
     const whole = r.a.y === r.b.y && r.a.m === 1 && r.b.m === 12;
-    x.filename = "money-tracker-" + (r.n === 1 ? ym(r.a.y, r.a.m) : whole ? String(r.a.y) : ym(r.a.y, r.a.m) + "-to-" + ym(r.b.y, r.b.m)) + ".xlsx";
+    const now = new Date();
+    x.filename = x.backup ? "money-tracker-backup-" + now.getFullYear() + "-" + pad(now.getMonth() + 1) + "-" + pad(now.getDate()) + ".xlsx"
+      : "money-tracker-" + (r.n === 1 ? ym(r.a.y, r.a.m) : whole ? String(r.a.y) : ym(r.a.y, r.a.m) + "-to-" + ym(r.b.y, r.b.m)) + ".xlsx";
     x.stage = "ready";
   } catch (err) {
     if (S.exp !== x) return;
@@ -1488,7 +1567,11 @@ async function createExport() {
 async function saveExport() {
   const x = S.exp; if (!x || !x.blob) return;
   const res = await saveFile(x.filename, x.blob, XLSX_MIME, null);
-  if (res === "saved") { toast("Excel report saved: " + x.filename); closeExport(); }
+  if (res === "saved") {
+    if (x.backup) { setMeta({ lastBackup: new Date().toISOString(), snooze: 0 }); toast("Backup saved. Keep it somewhere safe, like Google Drive."); schedule(); }
+    else toast("Excel report saved: " + x.filename);
+    closeExport();
+  }
   else if (res === "unavailable") { x.stage = "error"; x.blob = null; x.msg = "Saving files isn't available here. Use the offline app or another browser to download it, or use Copy for a spreadsheet instead."; renderExport(); }
 }
 
@@ -1593,7 +1676,7 @@ function renderNotice() {
   else if (B.mode === "local" && hasAnyEntries()) {
     const last = md.lastBackup ? new Date(md.lastBackup).getTime() : 0, days = last ? Math.floor((Date.now() - last) / 864e5) : null;
     const total = Object.keys(S.months).reduce((t, k) => t + S.months[k].length, 0);
-    const due = last ? days >= 30 : total >= 10;
+    const due = last ? days >= 7 : total >= 10;
     if (due && !(md.snooze && Date.now() < md.snooze)) {
       msg = last ? "Your last backup was " + plural(days, "day", "days") + " ago. Back up so a new phone or cleared browser doesn't lose your entries." : "You haven't backed up yet. A backup file keeps your entries safe if you change phones or clear your browser.";
       acts = '<button type="button" class="btn btn-primary" data-act="backup">Back up now</button><button type="button" class="btn" data-act="snooze">Later</button>';
@@ -2202,8 +2285,9 @@ function onAct(act, el) {
     case "copy-month": copyText(toTSV(monthList(S.y, S.m)), MONTHS[S.m - 1] + " " + S.y); break;
     case "copy-year": copyText(toTSV(yearEntries(S.y)), String(S.y)); break;
     case "copy-close": $("#copybox").hidden = true; break;
-    case "backup": backupNow(); break;
-    case "snooze": setMeta({ snooze: Date.now() + 7 * 864e5 }); renderNotice(); break;
+    case "backup": openExport("backup", el); break;
+    case "backup-json": closeExport(); backupJson(); break;
+    case "snooze": setMeta({ snooze: Date.now() + 2 * 864e5 }); renderNotice(); break;
     case "restore-pick": $("#restoreFile").click(); break;
     case "restore-go": applyRestore(); break;
     case "restore-cancel": S.restore = null; renderData(); break;

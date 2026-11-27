@@ -1,4 +1,4 @@
-const CACHE='moneytracker-2026-11-27d';
+const CACHE='moneytracker-2026-11-27e';
 const CORE=['./','index.html','manifest.webmanifest','icon-192.png','icon-512.png','apple-touch-icon.png'];
 // the Excel report maker, kept on the phone so reports work offline too
 const LIB='https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
