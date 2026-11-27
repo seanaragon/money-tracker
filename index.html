@@ -31,7 +31,7 @@
   --accent:#2A251F;--accent-hover:#15120F;--on-accent:#FDFBF7;
   --needs:#5F7586;--wants:#BF7A5C;--goals:#B58C35;--savings:#627F57;--unsorted:#A89C8A;
   --pos:#43703C;--neg:#A6462F;--neg-soft:#F4E2DA;
-  --shadow:rgba(42,37,31,.22);
+  --shadow:rgba(42,37,31,.22);--scrim:rgba(30,26,22,.4);
   --font:"Geist",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
   --mono:"Geist Mono",ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
   color-scheme:light;
@@ -41,14 +41,14 @@
     --paper:#1B1815;--sheet:#23201C;--field:#2A2622;--line:#36302A;--line-2:#4B443C;--track:#3A342E;
     --ink:#EEE7DB;--ink-2:#C2B8AA;--ink-3:#9A9082;--accent:#EEE7DB;--accent-hover:#FFFFFF;--on-accent:#1B1815;
     --needs:#8DA3B4;--wants:#D99A7E;--goals:#D6B062;--savings:#93B485;--unsorted:#8F8576;
-    --pos:#86BC79;--neg:#E8826B;--neg-soft:#3B2620;--shadow:rgba(0,0,0,.55);color-scheme:dark;
+    --pos:#86BC79;--neg:#E8826B;--neg-soft:#3B2620;--shadow:rgba(0,0,0,.55);--scrim:rgba(0,0,0,.6);color-scheme:dark;
   }
 }
 :root[data-theme="dark"]:not([data-look]),:root[data-look="dark"]{
   --paper:#1B1815;--sheet:#23201C;--field:#2A2622;--line:#36302A;--line-2:#4B443C;--track:#3A342E;
   --ink:#EEE7DB;--ink-2:#C2B8AA;--ink-3:#9A9082;--accent:#EEE7DB;--accent-hover:#FFFFFF;--on-accent:#1B1815;
   --needs:#8DA3B4;--wants:#D99A7E;--goals:#D6B062;--savings:#93B485;--unsorted:#8F8576;
-  --pos:#86BC79;--neg:#E8826B;--neg-soft:#3B2620;--shadow:rgba(0,0,0,.55);color-scheme:dark;
+  --pos:#86BC79;--neg:#E8826B;--neg-soft:#3B2620;--shadow:rgba(0,0,0,.55);--scrim:rgba(0,0,0,.6);color-scheme:dark;
 }
 :root[data-look="custom"]{
   --paper:var(--c-bg);--ink:var(--c-ink);--accent:var(--c-accent);--accent-hover:var(--c-accent);--on-accent:var(--c-on-accent);
@@ -60,7 +60,7 @@
 :root[data-look="custom"][data-base="dark"]{
   --sheet:color-mix(in srgb,var(--c-bg) 93%,#fff);--field:color-mix(in srgb,var(--c-bg) 87%,#fff);
   --needs:#8DA3B4;--wants:#D99A7E;--goals:#D6B062;--savings:#93B485;--unsorted:#8F8576;
-  --pos:#86BC79;--neg:#E8826B;--shadow:rgba(0,0,0,.55);color-scheme:dark;
+  --pos:#86BC79;--neg:#E8826B;--shadow:rgba(0,0,0,.55);--scrim:rgba(0,0,0,.6);color-scheme:dark;
 }
 *{box-sizing:border-box}
 html{background:var(--paper)}
@@ -148,7 +148,8 @@ select.sel{height:42px;border:1px solid var(--line-2);border-radius:10px;backgro
 .mhead{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding:30px 0 18px}
 .mhead h1{margin:6px 0 0;font-size:34px;font-weight:600;letter-spacing:-.03em;line-height:1.05;text-wrap:balance}
 .mhead h1 .y{color:var(--ink-3);font-weight:400}
-.mnav{display:flex;gap:8px}
+.mnav{display:flex;gap:8px;align-items:center}
+.btn svg{width:14px;height:14px;flex:none}
 
 /* welcome */
 .welcome{margin-bottom:18px;border:1px dashed var(--line-2);border-radius:16px;padding:16px 18px;display:grid;gap:10px;background:var(--sheet)}
@@ -307,6 +308,18 @@ table.t{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;mi
 .data-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:6px 0 12px}
 .restore-box{border:1px solid var(--line-2);border-radius:12px;padding:12px 14px;margin:4px 0 12px;background:var(--sheet)}
 .restore-box p{margin:0 0 6px}
+
+/* excel report dialog */
+.lhead-acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end}
+.modal{position:fixed;inset:0;z-index:45;background:var(--scrim);display:flex;align-items:flex-end;justify-content:center;padding:16px max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.modal-card{width:min(500px,100%);max-height:100%;overflow:auto;background:var(--field);border:1px solid var(--line-2);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:14px;box-shadow:0 24px 60px -24px var(--shadow)}
+.ex-chips{display:flex;flex-wrap:wrap;gap:6px}
+.ex-grid{display:grid;grid-template-columns:44px minmax(0,1fr) 100px;gap:8px 10px;align-items:center}
+.ex-grid label{font-size:13px;color:var(--ink-2)}
+.ex-note{font-size:12.5px;color:var(--ink-3);margin:0}
+.ex-ready{border:1px solid var(--line-2);border-radius:12px;padding:12px 14px;background:var(--sheet);display:grid;gap:4px}
+.ex-acts{display:flex;flex-wrap:wrap;gap:8px}
+@media (min-width:641px){.modal{align-items:center}}
 
 /* toast, copy box, footer */
 .toast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:14px;padding:8px 8px 8px 16px;border-radius:999px;background:var(--ink);color:var(--paper);font-size:13px;width:max-content;max-width:calc(100% - 32px);box-shadow:0 12px 30px -12px var(--shadow)}
@@ -476,9 +489,12 @@ table.t{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;mi
 
       <div class="lhead" id="entries">
         <h2>Entries</h2>
-        <div class="search">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg>
-          <input id="q" type="search" placeholder="Search this month" aria-label="Search this month's entries">
+        <div class="lhead-acts">
+          <div class="search">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg>
+            <input id="q" type="search" placeholder="Search this month" aria-label="Search this month's entries">
+          </div>
+          <button type="button" class="btn" data-act="export" data-range="month"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v8M4.5 7 8 10.5 11.5 7M3 13.5h10"/></svg>Download Excel</button>
         </div>
       </div>
       <div class="filters" id="mFilters" role="group" aria-label="Filter entries"></div>
@@ -490,6 +506,7 @@ table.t{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;mi
       <div class="mhead">
         <div><div class="eyebrow" id="yEyebrow"></div><h1 id="yTitle"></h1></div>
         <div class="mnav">
+          <button type="button" class="btn" data-act="export" data-range="year"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v8M4.5 7 8 10.5 11.5 7M3 13.5h10"/></svg>Download Excel</button>
           <button type="button" class="icon-btn lg" data-act="year-prev" aria-label="Previous year"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.5"/></svg></button>
           <button type="button" class="icon-btn lg" data-act="year-next" aria-label="Next year"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg></button>
         </div>
@@ -565,6 +582,12 @@ table.t{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;mi
   <span class="hint" id="copyHint">Copying was blocked here. The text is selected: press Ctrl+C (or ⌘C), then paste it where you keep it.</span>
   <textarea id="copyText" readonly aria-label="Text to copy"></textarea>
   <div class="acts"><span></span><button type="button" class="btn" data-act="copy-close">Close</button></div>
+</div>
+<div class="modal" id="exportModal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="exTitle">
+    <div class="tp-head"><b id="exTitle">Download an Excel report</b><button type="button" class="icon-btn" data-act="export-close" aria-label="Close"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"/></svg></button></div>
+    <div id="exBody" style="display:flex;flex-direction:column;gap:14px"></div>
+  </div>
 </div>
 
 <script>
@@ -758,15 +781,16 @@ function monthsFromRaw(mo) {
   return out;
 }
 function rawMonths() { const o = {}; for (const k of Object.keys(S.months)) if (S.months[k].length) o[k] = S.months[k].map(rawOf); return o; }
-function monthData(y, m) {
-  const list = monthList(y, m);
+function monthData(y, m, get) {
+  get = get || monthList;
+  const list = get(y, m);
   const r = { y, m, list, inc: 0, carryIn: 0, out: 0, by: emptyBy(), n: { needs: 0, wants: 0, goals: 0, savings: 0, "": 0, in: 0, out: 0, unpaid: 0 }, unpaid: 0, moved: 0, movedEntries: [] };
   for (const e of list) {
     if (e.t === "in") { r.inc += e.amt; r.n.in++; if (e.from) r.carryIn += e.amt; }
     else { r.out += e.amt; r.by[e.b] += e.amt; r.n[e.b]++; r.n.out++; if (!e.paid) { r.unpaid += e.amt; r.n.unpaid++; } }
   }
   const nx = shift(y, m, 1), key = ym(y, m);
-  for (const e of monthList(nx.y, nx.m)) if (e.t === "in" && e.from === key) { r.moved += e.amt; r.movedEntries.push(e); }
+  for (const e of get(nx.y, nx.m)) if (e.t === "in" && e.from === key) { r.moved += e.amt; r.movedEntries.push(e); }
   for (const k of ["inc", "out", "moved", "carryIn", "unpaid"]) r[k] = r2(r[k]);
   for (const k of ALLK) r.by[k] = r2(r.by[k]);
   r.left = r2(r.inc - r.out - r.moved);
@@ -1028,16 +1052,22 @@ function copyText(text, what) {
   try { p = navigator.clipboard.writeText(text); } catch (e) { p = Promise.reject(e); }
   p.then(() => toast("Copied " + what + ". Paste it into any spreadsheet."), () => showCopyBox(text));
 }
-async function saveFile(name, text) {
+async function saveFile(name, data, mime, copyFallback) {
   if (B.env === "artifact") {
     if (B.downloads) {
-      try { await B.downloads.save({ filename: name, data: text }); return "saved"; }
-      catch (err) { if (err && err.code === "declined") return "declined"; }
+      try { await B.downloads.save({ filename: name, data }); return "saved"; }
+      catch (err) {
+        if (err && err.code === "declined") return "declined";
+        if (err && err.code === "rate_limited") { toast("Another save is still waiting for your answer."); return "declined"; }
+      }
     }
-    showCopyBox(text, "Saving a file isn't available here. Copy this text and keep it somewhere safe, like a note or Google Drive. Restore accepts it as a .json file.");
-    return "copied";
+    if (copyFallback) {
+      showCopyBox(copyFallback, "Saving a file isn't available here. Copy this text and keep it somewhere safe, like a note or Google Drive. Restore accepts it as a .json file.");
+      return "copied";
+    }
+    return "unavailable";
   }
-  const file = new File([text], name, { type: "application/json" });
+  const file = new File([data], name, { type: mime });
   if (matchMedia("(pointer:coarse)").matches && navigator.canShare && navigator.canShare({ files: [file] })) {
     try { await navigator.share({ files: [file], title: name }); return "saved"; }
     catch (err) { if (err && err.name === "AbortError") return "declined"; }
@@ -1073,7 +1103,7 @@ async function backupNow() {
   S.busy = null; renderData();
   const n = new Date();
   const text = JSON.stringify({ app: "money-tracker", v: 1, exported: n.toISOString(), settings: S.settings, months }, null, 1);
-  const res = await saveFile("money-tracker-backup-" + n.getFullYear() + "-" + pad(n.getMonth() + 1) + "-" + pad(n.getDate()) + ".json", text);
+  const res = await saveFile("money-tracker-backup-" + n.getFullYear() + "-" + pad(n.getMonth() + 1) + "-" + pad(n.getDate()) + ".json", text, "application/json", text);
   if (res === "saved") { setMeta({ lastBackup: n.toISOString(), snooze: 0 }); toast("Backup saved. Keep the file somewhere safe, like Google Drive."); }
   else if (res === "copied") setMeta({ lastBackup: n.toISOString(), snooze: 0 });
   schedule();
@@ -1109,6 +1139,323 @@ async function applyRestore() {
     toast("Restored " + plural(r.count, "entry", "entries") + ".");
   } catch (err) { handleWriteError(err); }
   S.busy = null; renderData();
+}
+
+/* ---------- excel report ---------- */
+const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const EXCELJS_URL = "https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js";
+let excelP = null;
+function loadExcel() {
+  if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
+  if (!excelP) {
+    excelP = new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = EXCELJS_URL; s.async = true;
+      s.onload = () => window.ExcelJS ? resolve(window.ExcelJS) : reject(new Error("missing"));
+      s.onerror = () => reject(new Error("load"));
+      (document.head || document.documentElement).appendChild(s);
+    }).catch(err => { excelP = null; throw err; });
+  }
+  return excelP;
+}
+function rangeLabel(fy, fm, ty, tm) {
+  if (fy === ty && fm === tm) return MONTHS[fm - 1] + " " + fy;
+  if (fy === ty && fm === 1 && tm === 12) return "All of " + fy;
+  if (fy === ty) return MONTHS[fm - 1] + " to " + MONTHS[tm - 1] + " " + fy;
+  return MONTHS[fm - 1] + " " + fy + " to " + MONTHS[tm - 1] + " " + ty;
+}
+function orderedRange(x) {
+  let a = { y: x.fy, m: x.fm }, b = { y: x.ty, m: x.tm };
+  if (cmpYM(a.y, a.m, b.y, b.m) > 0) { const t = a; a = b; b = t; }
+  return { a, b, n: cmpYM(b.y, b.m, a.y, a.m) + 1 };
+}
+function exportYears() {
+  const ys = new Set(cfg().years.concat([TODAY.y - 1, TODAY.y, TODAY.y + 1, S.y - 1, S.y]));
+  for (const k of Object.keys(S.months)) ys.add(Number(k.slice(0, 4)));
+  const arr = Array.from(ys).sort((p, q) => p - q), out = [];
+  for (let y = arr[0]; y <= arr[arr.length - 1]; y++) out.push(y);
+  return out;
+}
+function exportPresets() {
+  const Y = S.y, M0 = S.m, q = shift(Y, M0, -2);
+  const three = q.y === Y ? MON[q.m - 1] + "–" + MON[M0 - 1] + " " + Y : MON[q.m - 1] + " " + q.y + "–" + MON[M0 - 1] + " " + Y;
+  return [
+    { t: MON[M0 - 1] + " " + Y, v: [Y, M0, Y, M0] },
+    { t: three, v: [q.y, q.m, Y, M0] },
+    { t: "All of " + Y, v: [Y, 1, Y, 12] },
+    { t: "Jan–Jun " + Y, v: [Y, 1, Y, 6] },
+    { t: "Jul–Dec " + Y, v: [Y, 7, Y, 12] },
+    { t: "All of " + (Y - 1), v: [Y - 1, 1, Y - 1, 12] }
+  ].map(p => ({ t: p.t, v: p.v.join(",") }));
+}
+function openExport(range, opener) {
+  const whole = range === "year";
+  S.exp = { stage: "pick", fy: S.y, fm: whole ? 1 : S.m, ty: S.y, tm: whole ? 12 : S.m, blob: null, filename: "", label: "", info: "", msg: "" };
+  S.expOpener = opener || null;
+  S.themeOpen = false; renderTheme();
+  renderExport();
+  loadExcel().catch(() => {});
+  const first = document.querySelector('#exBody [data-expreset][aria-pressed="true"]') || document.querySelector("#exBody [data-expreset]");
+  if (first) first.focus();
+}
+function closeExport() {
+  S.exp = null; renderExport();
+  const o = S.expOpener; S.expOpener = null;
+  if (o && document.contains(o)) o.focus();
+}
+function renderExport() {
+  const x = S.exp, modal = $("#exportModal");
+  modal.hidden = !x;
+  if (!x) return;
+  const body = $("#exBody");
+  if (x.stage === "busy") { body.innerHTML = '<p class="hint" role="status" style="margin:0">' + esc(x.msg) + "</p>"; return; }
+  if (x.stage === "ready") {
+    body.innerHTML = '<div class="ex-ready"><b>' + esc(x.label) + '</b><span class="hint">' + esc(x.info) + "</span></div>" +
+      '<p class="ex-note">Three sheets: <b>Summary</b> (totals, month by month, plan vs actual), <b>Top spending</b>, and <b>Entries</b> with a filter on every column.</p>' +
+      '<div class="ex-acts"><button type="button" class="btn btn-primary" data-act="export-save">Save Excel file</button><button type="button" class="btn" data-act="export-again">Pick another range</button></div>';
+    const s = body.querySelector('[data-act="export-save"]'); if (s) s.focus();
+    return;
+  }
+  const ys = exportYears();
+  const yOpts = v => ys.map(y => '<option value="' + y + '"' + (y === v ? " selected" : "") + ">" + y + "</option>").join("");
+  const mOpts = v => MONTHS.map((n, i) => '<option value="' + (i + 1) + '"' + (i + 1 === v ? " selected" : "") + ">" + n + "</option>").join("");
+  body.innerHTML = (x.stage === "error" ? '<p class="neg" role="alert" style="margin:0">' + esc(x.msg) + "</p>" : "") +
+    '<div class="ex-chips" role="group" aria-label="Quick ranges">' + exportPresets().map(p => '<button type="button" class="chip" data-expreset="' + p.v + '" aria-pressed="false">' + esc(p.t) + "</button>").join("") + "</div>" +
+    '<div class="ex-grid"><label for="exFm">From</label><select class="sel" id="exFm">' + mOpts(x.fm) + '</select><select class="sel" id="exFy" aria-label="From year">' + yOpts(x.fy) + "</select>" +
+    '<label for="exTm">To</label><select class="sel" id="exTm">' + mOpts(x.tm) + '</select><select class="sel" id="exTy" aria-label="To year">' + yOpts(x.ty) + "</select></div>" +
+    '<p class="ex-note" id="exNote"></p>' +
+    '<div class="ex-acts"><button type="button" class="btn btn-primary" data-act="export-create">Create Excel report</button><button type="button" class="btn" data-act="export-close">Cancel</button></div>';
+  updateExportNote();
+}
+function updateExportNote() {
+  const x = S.exp; if (!x) return;
+  const curV = [x.fy, x.fm, x.ty, x.tm].join(",");
+  document.querySelectorAll("#exBody [data-expreset]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.expreset === curV)));
+  const r = orderedRange(x), note = $("#exNote");
+  if (note) note.textContent = rangeLabel(r.a.y, r.a.m, r.b.y, r.b.m) + " · " + plural(r.n, "month", "months") + ". The file has a summary, month-by-month totals, plan vs actual, your top spending and every entry.";
+}
+async function rangeAccessor(a, b) {
+  const extra = {};
+  if (B.mode === "cloud") {
+    for (let y = a.y; y <= b.y + 1; y++) {
+      if (S.confirmed[y]) continue;
+      const snap = await B.db.collection(B.base + "/y" + y + "/months").get();
+      for (const d of snap.docs) {
+        const m = Number(d.id); if (!(m >= 1 && m <= 12)) continue;
+        const data = d.data() || {};
+        extra[ym(y, m)] = (Array.isArray(data.e) ? data.e : []).filter(v => v && typeof v === "object").map(v => normEntry(v, y, m));
+      }
+      extra["y" + y] = true;
+    }
+  }
+  return (y, m) => extra["y" + y] ? (extra[ym(y, m)] || []) : monthList(y, m);
+}
+function buildWorkbook(X, a, b, get) {
+  const cur = (cfg().currency || "₱").replace(/["\\]/g, "") || "₱";
+  const q = s => '"' + cur + '"' + s;
+  const FM = q("#,##0.00") + ";[Red]-" + q("#,##0.00"), FM_PLAIN = q("#,##0.00") + ";-" + q("#,##0.00"), FM_WHOLE = q("#,##0") + ";-" + q("#,##0"), PCT = "0%";
+  const C = { ink: "FF2A251F", ink2: "FF5A5145", ink3: "FF72685B", head: "FFF1EBE1", line: "FFCDC2B0", soft: "FFE7DFD2", pos: "FF43703C", neg: "FFA6462F", needs: "FF5F7586", wants: "FFBF7A5C", goals: "FFB58C35", savings: "FF627F57", unsorted: "FF8E8476" };
+  const bc = k => C[k || "unsorted"];
+  const col = n => { let s = ""; while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); } return s; };
+  const months = [];
+  for (let i = a.y * 12 + a.m - 1; i <= b.y * 12 + b.m - 1; i++) months.push(monthData(Math.floor(i / 12), i % 12 + 1, get));
+  const all = [].concat(...months.map(r => r.list));
+  const withData = months.filter(r => r.has);
+  const hasUnsorted = months.some(r => r.by[""] > 0);
+  const hasCarry = months.some(r => r.carryIn > 0 || r.moved > 0);
+  const fresh = r => r2(r.inc - r.carryIn);
+  const T = { inc: 0, out: 0, unpaid: 0, by: emptyBy() };
+  for (const r of months) { T.inc += fresh(r); T.out += r.out; T.unpaid += r.unpaid; for (const k of ALLK) T.by[k] += r.by[k]; }
+  T.inc = r2(T.inc); T.out = r2(T.out); T.unpaid = r2(T.unpaid); for (const k of ALLK) T.by[k] = r2(T.by[k]);
+  const wb = new X.Workbook();
+  wb.creator = "Money Tracker"; wb.created = new Date();
+  const page = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 } };
+  const thin = { style: "thin", color: { argb: C.line } }, hair = { style: "hair", color: { argb: C.soft } };
+  const header = (ws, row, labels, rightFrom) => {
+    labels.forEach((t, i) => {
+      const c = ws.getCell(row, i + 1);
+      c.value = t; c.font = { bold: true, color: { argb: C.ink } };
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: C.head } };
+      c.border = { bottom: thin };
+      c.alignment = { horizontal: i >= rightFrom ? "right" : "left", vertical: "middle" };
+    });
+    ws.getRow(row).height = 22;
+  };
+  const section = (ws, row, text, span) => {
+    const c = ws.getCell(row, 1); c.value = text; c.font = { size: 12, bold: true, color: { argb: C.ink } };
+    for (let i = 1; i <= span; i++) ws.getCell(row, i).border = { bottom: thin };
+  };
+  const setMoney = (cell, v, fmt) => { cell.value = v; cell.numFmt = fmt || FM; };
+
+  /* Summary sheet */
+  const mHead = ["Month", "Income"].concat(BUCKETS.map(x => x.label), hasUnsorted ? ["Unsorted"] : [], ["Total out", "Left over", "Saved %"]);
+  const W = mHead.length, cInc = 2, cB0 = 3, cBn = 2 + KEYS.length + (hasUnsorted ? 1 : 0), cTot = cBn + 1, cLeft = cTot + 1, cPct = cLeft + 1;
+  const cOf = k => cB0 + KEYS.indexOf(k), cSav = cOf("savings");
+  const ws = wb.addWorksheet("Summary", { views: [{ showGridLines: false }], pageSetup: page, properties: { tabColor: { argb: C.savings } } });
+  ws.columns = mHead.map((h, i) => ({ width: i === 0 ? 34 : Math.max(15, h.length + 4) }));
+  ws.getColumn(5).width = 28;
+  ws.getCell(1, 1).value = "Money Tracker report"; ws.getCell(1, 1).font = { size: 18, bold: true, color: { argb: C.ink } };
+  ws.getCell(2, 1).value = rangeLabel(a.y, a.m, b.y, b.m); ws.getCell(2, 1).font = { size: 13, bold: true, color: { argb: C.ink2 } };
+  const stamp = new Date().toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  ws.getCell(3, 1).value = "Exported " + stamp + " · amounts in " + cur + " · " + plural(all.length, "entry", "entries");
+  ws.getCell(3, 1).font = { size: 10, italic: true, color: { argb: C.ink3 } };
+  const mStart = 16, mEnd = mStart + months.length - 1, rT = mEnd + 1, rAvg = rT + 1;
+  section(ws, 5, "Totals", 2);
+  const kv = [
+    ["Income", { formula: col(cInc) + rT, result: T.inc }, FM],
+    ["Money out (spent and saved)", { formula: col(cTot) + rT, result: T.out }, FM],
+    ["Saved", { formula: col(cSav) + rT, result: T.by.savings }, FM],
+    ["Savings rate", { formula: "IF(B6>0,B8/B6,0)", result: T.inc > 0 ? T.by.savings / T.inc : 0 }, PCT],
+    ["Left over", { formula: col(cLeft) + rT, result: r2(T.inc - T.out) }, FM],
+    ["Not paid yet", T.unpaid, FM],
+    ["Average money out a month", withData.length ? r2(T.out / withData.length) : 0, FM_WHOLE]
+  ];
+  kv.forEach(([k, v, f], i) => {
+    const lc = ws.getCell(6 + i, 1); lc.value = k; lc.font = { color: { argb: C.ink2 } };
+    const vc = ws.getCell(6 + i, 2); vc.value = v; vc.numFmt = f; vc.font = { bold: true, color: { argb: C.ink } }; vc.alignment = { horizontal: "right" };
+  });
+  section(ws, 14, "Month by month", W);
+  header(ws, 15, mHead, 1);
+  months.forEach((r, i) => {
+    const row = mStart + i, inc = fresh(r);
+    [MONTHS[r.m - 1] + " " + r.y, inc].concat(KEYS.map(k => r.by[k]), hasUnsorted ? [r.by[""]] : []).forEach((v, j) => { const c = ws.getCell(row, j + 1); c.value = v; if (j > 0) c.numFmt = FM; });
+    const tc = ws.getCell(row, cTot); tc.value = { formula: "SUM(" + col(cB0) + row + ":" + col(cBn) + row + ")", result: r.out }; tc.numFmt = FM; tc.font = { bold: true };
+    const lc = ws.getCell(row, cLeft); lc.value = { formula: col(cInc) + row + "-" + col(cTot) + row, result: r2(inc - r.out) }; lc.numFmt = FM;
+    const pc = ws.getCell(row, cPct); pc.value = { formula: "IF(" + col(cInc) + row + ">0," + col(cSav) + row + "/" + col(cInc) + row + ",0)", result: inc > 0 ? r.by.savings / inc : 0 }; pc.numFmt = PCT;
+    for (let j = 1; j <= W; j++) { const c = ws.getCell(row, j); c.border = { bottom: hair }; if (!r.has) c.font = { color: { argb: C.ink3 } }; }
+  });
+  const totals = [T.inc].concat(KEYS.map(k => T.by[k]), hasUnsorted ? [T.by[""]] : [], [T.out, r2(T.inc - T.out)]);
+  ws.getCell(rT, 1).value = "Total";
+  totals.forEach((v, i) => { const j = i + 2, c = ws.getCell(rT, j); c.value = { formula: "SUM(" + col(j) + mStart + ":" + col(j) + mEnd + ")", result: v }; c.numFmt = FM; });
+  ws.getCell(rT, cPct).value = { formula: "IF(" + col(cInc) + rT + ">0," + col(cSav) + rT + "/" + col(cInc) + rT + ",0)", result: T.inc > 0 ? T.by.savings / T.inc : 0 };
+  ws.getCell(rT, cPct).numFmt = PCT;
+  for (let j = 1; j <= W; j++) { const c = ws.getCell(rT, j); c.font = { bold: true, color: { argb: C.ink } }; c.border = { top: thin, bottom: thin }; }
+  const n = withData.length || 1, avgInc = T.inc / n;
+  ws.getCell(rAvg, 1).value = withData.length < months.length ? "Average month (months with entries)" : "Average month";
+  [avgInc].concat(KEYS.map(k => T.by[k] / n), hasUnsorted ? [T.by[""] / n] : [], [T.out / n, (T.inc - T.out) / n]).forEach((v, i) => { const c = ws.getCell(rAvg, i + 2); c.value = r2(v); c.numFmt = FM; });
+  ws.getCell(rAvg, cPct).value = avgInc > 0 ? (T.by.savings / n) / avgInc : 0; ws.getCell(rAvg, cPct).numFmt = PCT;
+  for (let j = 1; j <= W; j++) ws.getCell(rAvg, j).font = { italic: true, color: { argb: C.ink2 } };
+
+  const rP = rAvg + 3;
+  section(ws, rP, "Plan vs actual", 6);
+  header(ws, rP + 1, ["Bucket", "Planned", "Actual", "Difference", "How it went", "Share of income"], 1);
+  BUCKETS.forEach((bk, i) => {
+    const row = rP + 2 + i, k = bk.k;
+    const planned = r2(withData.reduce((t, r) => t + planFor(r.y, r.m)[k], 0)), actual = T.by[k];
+    const nc = ws.getCell(row, 1); nc.value = bk.label; nc.font = { bold: true, color: { argb: bc(k) } };
+    setMoney(ws.getCell(row, 2), planned);
+    ws.getCell(row, 3).value = { formula: col(cOf(k)) + rT, result: actual }; ws.getCell(row, 3).numFmt = FM;
+    ws.getCell(row, 4).value = { formula: "C" + row + "-B" + row, result: r2(actual - planned) }; ws.getCell(row, 4).numFmt = FM_PLAIN;
+    let txt = "No plan set", good = null;
+    if (planned > 0) {
+      const d = r2(actual - planned);
+      if (k === "savings") { good = d >= 0; txt = d >= 0 ? "Above plan by " + money(d) : "Short by " + money(-d); }
+      else { good = d <= 0; txt = d <= 0 ? "Under plan by " + money(-d) : "Over plan by " + money(d); }
+    }
+    const hc = ws.getCell(row, 5); hc.value = txt; hc.font = { bold: good != null, color: { argb: good == null ? C.ink3 : good ? C.pos : C.neg } };
+    ws.getCell(row, 6).value = { formula: "IF($B$6>0,C" + row + "/$B$6,0)", result: T.inc > 0 ? actual / T.inc : 0 }; ws.getCell(row, 6).numFmt = PCT;
+    for (let j = 1; j <= 6; j++) ws.getCell(row, j).border = { bottom: hair };
+  });
+  let rn = rP + 2 + BUCKETS.length + 1;
+  const notes = ["Planned amounts add up your monthly plan for each month that has entries."];
+  if (hasCarry) notes.push("Leftovers you moved from one month to the next aren't counted as income here, so nothing is counted twice.");
+  if (withData.length < months.length) notes.push(plural(months.length - withData.length, "month", "months") + " in this range had no entries and show as zero.");
+  notes.forEach(t => { const c = ws.getCell(rn++, 1); c.value = t; c.font = { size: 10, italic: true, color: { argb: C.ink3 } }; });
+
+  /* Top spending sheet */
+  const ts = wb.addWorksheet("Top spending", { views: [{ state: "frozen", ySplit: 1 }], pageSetup: page, properties: { tabColor: { argb: C.wants } } });
+  ts.columns = [{ width: 7 }, { width: 34 }, { width: 18 }, { width: 9 }, { width: 16 }, { width: 16 }, { width: 14 }];
+  header(ts, 1, ["Rank", "Item", "Bucket", "Times", "Total", "Average", "Share of out"], 3);
+  const groups = new Map();
+  for (const e of all) {
+    if (e.t !== "out") continue;
+    const k = norm(e.desc) || "(no name)";
+    let v = groups.get(k);
+    if (!v) { v = { name: e.desc.trim() || "(no name)", total: 0, n: 0, bc: {} }; groups.set(k, v); }
+    v.total += e.amt; v.n++; v.bc[e.b] = (v.bc[e.b] || 0) + 1;
+  }
+  const items = Array.from(groups.values()).sort((p, q2) => q2.total - p.total);
+  items.forEach((v, i) => {
+    const row = i + 2, main = Object.keys(v.bc).sort((p, q2) => v.bc[q2] - v.bc[p])[0] || "";
+    const rc = ts.getCell(row, 1); rc.value = i + 1; rc.alignment = { horizontal: "left" }; rc.font = { color: { argb: C.ink3 } };
+    ts.getCell(row, 2).value = v.name;
+    const bcell = ts.getCell(row, 3); bcell.value = labelOf(main); bcell.font = { color: { argb: bc(main) } };
+    ts.getCell(row, 4).value = v.n;
+    setMoney(ts.getCell(row, 5), r2(v.total)); ts.getCell(row, 5).font = { bold: true };
+    setMoney(ts.getCell(row, 6), r2(v.total / v.n));
+    ts.getCell(row, 7).value = T.out > 0 ? v.total / T.out : 0; ts.getCell(row, 7).numFmt = "0.0%";
+    for (let j = 1; j <= 7; j++) ts.getCell(row, j).border = { bottom: hair };
+  });
+  if (items.length) ts.autoFilter = "A1:G" + (items.length + 1);
+  else ts.getCell(2, 2).value = "No spending in this range.";
+
+  /* Entries sheet */
+  const es = wb.addWorksheet("Entries", { views: [{ state: "frozen", ySplit: 1 }], pageSetup: page, properties: { tabColor: { argb: C.needs } } });
+  es.columns = [{ width: 14 }, { width: 7 }, { width: 11 }, { width: 11 }, { width: 13 }, { width: 36 }, { width: 18 }, { width: 15 }, { width: 15 }, { width: 8 }];
+  header(es, 1, ["Date", "Day", "Time", "Month", "Type", "Description", "Bucket", "Money in", "Money out", "Paid"], 7);
+  const sorted = all.slice().sort((p, q2) => (p.y - q2.y) || (p.m - q2.m) || ((p.d || 0) - (q2.d || 0)) || String(p.tm || "").localeCompare(String(q2.tm || "")) || (p.ts - q2.ts));
+  const epoch = Date.UTC(1899, 11, 30);
+  let sumIn = 0, sumOut = 0;
+  sorted.forEach((e, i) => {
+    const row = i + 2;
+    if (e.d) {
+      const dc = es.getCell(row, 1); dc.value = (Date.UTC(e.y, e.m - 1, e.d) - epoch) / 864e5; dc.numFmt = "mmm d, yyyy"; dc.alignment = { horizontal: "left" };
+      es.getCell(row, 2).value = new Date(e.y, e.m - 1, e.d).toLocaleDateString("en-US", { weekday: "short" });
+    }
+    if (e.tm) { const p = e.tm.split(":").map(Number), tc = es.getCell(row, 3); tc.value = (p[0] * 60 + p[1]) / 1440; tc.numFmt = "h:mm AM/PM"; tc.alignment = { horizontal: "left" }; }
+    es.getCell(row, 4).value = MON[e.m - 1] + " " + e.y;
+    es.getCell(row, 5).value = e.t === "in" ? (e.from ? "Carried over" : "Income") : "Expense";
+    es.getCell(row, 6).value = e.desc;
+    if (e.t === "out") {
+      const bcell = es.getCell(row, 7); bcell.value = labelOf(e.b); bcell.font = { color: { argb: bc(e.b) } };
+      setMoney(es.getCell(row, 9), e.amt); sumOut += e.amt;
+      const pc = es.getCell(row, 10); pc.value = e.paid ? "Yes" : "No"; if (!e.paid) pc.font = { bold: true, color: { argb: C.neg } };
+    } else {
+      setMoney(es.getCell(row, 8), e.amt); es.getCell(row, 8).font = { color: { argb: C.pos } }; sumIn += e.amt;
+    }
+    for (let j = 1; j <= 10; j++) es.getCell(row, j).border = { bottom: hair };
+  });
+  if (sorted.length) {
+    const last = sorted.length + 1, rt = last + 2;
+    es.autoFilter = "A1:J" + last;
+    const lab = es.getCell(rt, 6); lab.value = "Total of the rows shown"; lab.font = { bold: true }; lab.alignment = { horizontal: "right" };
+    es.getCell(rt, 8).value = { formula: "SUBTOTAL(9,H2:H" + last + ")", result: r2(sumIn) };
+    es.getCell(rt, 9).value = { formula: "SUBTOTAL(9,I2:I" + last + ")", result: r2(sumOut) };
+    for (const j of [8, 9]) { const c = es.getCell(rt, j); c.numFmt = FM; c.font = { bold: true }; c.border = { top: thin }; }
+  } else es.getCell(2, 6).value = "No entries in this range.";
+
+  return { wb, entries: all.length, months: months.length };
+}
+async function createExport() {
+  const x = S.exp; if (!x) return;
+  const r = orderedRange(x);
+  if (r.n > 120) { x.stage = "error"; x.msg = "Pick a range of 10 years or less."; renderExport(); return; }
+  x.stage = "busy"; x.msg = "Creating your report for " + rangeLabel(r.a.y, r.a.m, r.b.y, r.b.m) + "…"; renderExport();
+  try {
+    let get;
+    try { get = await rangeAccessor(r.a, r.b); } catch (e) { throw { user: "Couldn't load your entries for that range. Check your connection and try again." }; }
+    let X;
+    try { X = await loadExcel(); } catch (e) { throw { user: "Couldn't load the Excel maker. Connect to the internet, then try again." }; }
+    const built = buildWorkbook(X, r.a, r.b, get);
+    const buf = await built.wb.xlsx.writeBuffer();
+    if (S.exp !== x) return;
+    x.blob = new Blob([buf], { type: XLSX_MIME });
+    x.label = rangeLabel(r.a.y, r.a.m, r.b.y, r.b.m);
+    x.info = plural(built.entries, "entry", "entries") + " · " + plural(built.months, "month", "months") + " · " + Math.max(1, Math.round(x.blob.size / 1024)) + " KB";
+    const whole = r.a.y === r.b.y && r.a.m === 1 && r.b.m === 12;
+    x.filename = "money-tracker-" + (r.n === 1 ? ym(r.a.y, r.a.m) : whole ? String(r.a.y) : ym(r.a.y, r.a.m) + "-to-" + ym(r.b.y, r.b.m)) + ".xlsx";
+    x.stage = "ready";
+  } catch (err) {
+    if (S.exp !== x) return;
+    x.stage = "error"; x.msg = (err && err.user) || "Couldn't create the report. Try again.";
+  }
+  renderExport();
+}
+async function saveExport() {
+  const x = S.exp; if (!x || !x.blob) return;
+  const res = await saveFile(x.filename, x.blob, XLSX_MIME, null);
+  if (res === "saved") { toast("Excel report saved: " + x.filename); closeExport(); }
+  else if (res === "unavailable") { x.stage = "error"; x.blob = null; x.msg = "Saving files isn't available here. Use the offline app or another browser to download it, or use Copy for a spreadsheet instead."; renderExport(); }
 }
 
 /* ---------- routing ---------- */
@@ -1539,13 +1886,14 @@ function renderData() {
     h += '<div class="restore-box"><p><b>Backup' + (r.exported ? " from " + esc(fmtFull(r.exported)) : "") + "</b> · " + plural(r.count, "entry", "entries") + " in " + plural(r.monthsN, "month", "months") + '.</p><p class="hint">Months in the backup replace the same months here. Your plan, bills and currency come from the backup too.</p><div class="data-row"><button type="button" class="btn btn-primary" data-act="restore-go">Restore</button><button type="button" class="btn" data-act="restore-cancel">Cancel</button></div></div>';
   }
   h += '<p class="hint">' + (list.length ? plural(list.length, "entry", "entries") + " in " + y + "." : "No entries in " + y + " yet.") + " Use the year arrows at the top to pick another year.</p>";
+  h += '<div class="data-row"><button type="button" class="btn" data-act="export" data-range="year">Download Excel report</button>';
   if (list.length) {
-    h += '<div class="data-row"><button type="button" class="btn" data-act="copy-year">Copy ' + y + " for a spreadsheet</button>";
+    h += '<button type="button" class="btn" data-act="copy-year">Copy ' + y + " for a spreadsheet</button>";
     h += S.delArm
       ? '<button type="button" class="btn btn-danger armed" data-act="del-go">Delete ' + plural(list.length, "entry", "entries") + ' for good</button><button type="button" class="btn" data-act="del-cancel">Keep them</button>'
       : '<button type="button" class="btn btn-danger" data-act="del-arm">Delete all ' + y + " entries</button>";
-    h += "</div>";
   }
+  h += "</div>";
   el.innerHTML = h;
 }
 
@@ -1803,6 +2151,11 @@ function onAct(act, el) {
     case "del-arm": S.delArm = true; renderData(); break;
     case "del-cancel": S.delArm = false; renderData(); break;
     case "del-go": deleteYear(S.y); break;
+    case "export": openExport(el.dataset.range || "month", el); break;
+    case "export-close": closeExport(); break;
+    case "export-create": createExport(); break;
+    case "export-save": saveExport(); break;
+    case "export-again": if (S.exp) { S.exp.stage = "pick"; S.exp.blob = null; renderExport(); } break;
     case "reconnect": reconnect(); break;
     case "a2hs-done": setMeta({ a2hsDone: true }); renderNotice(); break;
     case "local-done": setMeta({ localNoticeDone: true }); renderNotice(); break;
@@ -1811,10 +2164,17 @@ function onAct(act, el) {
 }
 
 document.addEventListener("click", ev => {
+  if (ev.target.id === "exportModal") { closeExport(); return; }
   if (S.themeOpen && !ev.target.closest("#themePanel") && !ev.target.closest("#themeBtn")) { S.themeOpen = false; renderTheme(); }
-  const el = ev.target.closest("[data-act],[data-filter],[data-m],[data-bill],[data-type],[data-pick],[data-top],[data-mode],[data-preset],.row");
+  const el = ev.target.closest("[data-act],[data-filter],[data-m],[data-bill],[data-type],[data-pick],[data-top],[data-mode],[data-preset],[data-expreset],.row");
   if (!el) return;
   if (el.dataset.act) { onAct(el.dataset.act, el); return; }
+  if (el.dataset.expreset) {
+    const p = el.dataset.expreset.split(",").map(Number);
+    if (S.exp) { Object.assign(S.exp, { fy: p[0], fm: p[1], ty: p[2], tm: p[3], stage: "pick", msg: "" }); renderExport(); }
+    const on = document.querySelector('#exBody [data-expreset][aria-pressed="true"]'); if (on) on.focus();
+    return;
+  }
   if (el.dataset.mode) { const mode = el.dataset.mode; saveSettings(s => { s.look.mode = mode; }); return; }
   if (el.dataset.preset) { const p = PRESETS.find(x => x.n === el.dataset.preset); if (p) saveSettings(s => { s.look = { mode: "custom", bg: p.bg, ink: p.ink, accent: p.accent }; }); return; }
   if (el.dataset.m) { nav(ym(S.y, Number(el.dataset.m))); return; }
@@ -1832,11 +2192,12 @@ document.addEventListener("keydown", ev => {
   const t = ev.target;
   if (t.classList && t.classList.contains("row") && (ev.key === "Enter" || ev.key === " ")) { ev.preventDefault(); openEditor(t.dataset.id); return; }
   if (ev.key === "Escape") {
+    if (S.exp) { closeExport(); return; }
     if (S.themeOpen) { S.themeOpen = false; renderTheme(); $("#themeBtn").focus(); return; }
     if (S.editing) { S.editing = null; renderMonth(); return; }
   }
   if (t.closest && t.closest("input,textarea,select,[contenteditable]")) return;
-  if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
+  if (ev.metaKey || ev.ctrlKey || ev.altKey || S.exp) return;
   if (ev.key === "ArrowLeft" || ev.key === "ArrowRight") {
     const dlt = ev.key === "ArrowLeft" ? -1 : 1;
     if (S.view === "month") { const n = shift(S.y, S.m, dlt); nav(ym(n.y, n.m)); ev.preventDefault(); }
@@ -1858,6 +2219,7 @@ document.addEventListener("change", ev => {
   const t = ev.target;
   if (t.type === "color" && t.dataset.k) { const k = t.dataset.k, v = t.value; saveSettings(s => { s.look.mode = "custom"; s.look[k] = v; }); }
   else if (t.id === "restoreFile") { const f = t.files && t.files[0]; if (f) readRestoreFile(f); t.value = ""; }
+  else if (S.exp && ["exFm", "exFy", "exTm", "exTy"].includes(t.id)) { S.exp[{ exFm: "fm", exFy: "fy", exTm: "tm", exTy: "ty" }[t.id]] = Number(t.value); if (S.exp.stage === "error") S.exp.stage = "pick"; updateExportNote(); }
 });
 document.addEventListener("submit", ev => {
   const f = ev.target;
