@@ -2074,15 +2074,16 @@ function autoWhen() {
 function resolveWhen() {
   const a = autoWhen(), w = S.add.when;
   if (!w) return a;
+  if (w.now) return nowParts(); // "Use now": today's real date and time from the phone, whatever month is open
   let y = a.y, m = a.m, d = a.d;
   if (w.date) { const p = w.date.split("-").map(Number); if (p[0] && p[1] && p[2]) { y = p[0]; m = p[1]; d = p[2]; } }
   return { y, m, d, tm: isTime(w.time) ? w.time : nowParts().tm };
 }
 function renderWhen() {
   const r = resolveWhen(), n = nowParts();
-  const isNow = !S.add.when && r.y === n.y && r.m === n.m;
-  $("#fWhenLabel").textContent = isNow ? "Now" : fmtDay(r.y, r.m, r.d) + (r.y !== n.y ? " " + r.y : "") + " · " + fmtTime(r.tm);
-  $("#fWhen").classList.toggle("set", !!S.add.when);
+  const isNow = (!S.add.when || S.add.when.now) && r.y === n.y && r.m === n.m;
+  $("#fWhenLabel").textContent = isNow ? (r.y === S.y && r.m === S.m ? "Now" : "Now · " + fmtDay(r.y, r.m, r.d)) : fmtDay(r.y, r.m, r.d) + (r.y !== n.y ? " " + r.y : "") + " · " + fmtTime(r.tm);
+  $("#fWhen").classList.toggle("set", !!S.add.when && !S.add.when.now);
   $("#fWhen").setAttribute("aria-expanded", String(S.add.whenOpen));
   $("#whenPanel").hidden = !S.add.whenOpen;
 }
@@ -2291,7 +2292,7 @@ function onAct(act, el) {
       renderWhen();
       break;
     }
-    case "when-now": S.add.when = null; S.add.whenOpen = false; renderWhen(); break;
+    case "when-now": S.add.when = { now: true }; S.add.whenOpen = false; renderWhen(); break;
     case "toggle-unpaid": S.add.unpaid = !S.add.unpaid; renderAddChips(); break;
     case "move": moveLeft(); break;
     case "unmove": undoMove(); break;
@@ -2464,7 +2465,7 @@ $("#yChart").addEventListener("pointerover", ev => {
 $("#yChart").addEventListener("pointerleave", () => { if (yearAvg) $("#yReadout").textContent = readoutText(yearAvg, "Average month") + ". Tap a month to open it."; });
 window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); B.installPrompt = e; schedule(); });
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && refreshToday()) schedule(); });
-setInterval(() => { if (refreshToday()) schedule(); else if (S.view === "month" && !S.add.when) renderWhen(); }, 60000);
+setInterval(() => { if (refreshToday()) schedule(); else if (S.view === "month" && (!S.add.when || S.add.when.now)) renderWhen(); }, 60000);
 
 /* ---------- boot ---------- */
 readHash();
